@@ -1,0 +1,18 @@
+---
+BasedOnStyle: Chromium
+BreakBeforeBinaryOperators: All
+CommentPragmas: ''
+ContinuationIndentWidth: 8
+IndentWidth: 4
+---
+Language: Cpp
+AlwaysBreakAfterReturnType: TopLevel
+BraceWrapping:
+  AfterFunction: true
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeBraces: Custom
+IncludeCategories:
+- Regex: '^".*"'
+  Priority: 1
+PointerAlignment: Right
+SortIncludes: true
