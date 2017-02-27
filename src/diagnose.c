@@ -34,35 +34,64 @@ struct diag_command {
     const char *str;
 };
 
-static struct diag_command commands[] = {{0x1230, "SERIAL_MASTER"},
-                                         {0x1231, "SERIAL_SLAVE_UP0"},
-                                         {0x1232, "SERIAL_SLAVE_UP1"},
-                                         {0x1233, "SERIAL_SLAVE_UP2"},
-                                         {0x1234, "SERIAL_SLAVE_UP3"},
-                                         {0x1235, "SERIAL_SLAVE_DOWN0"},
-                                         {0x1236, "SERIAL_SLAVE_DOWN1"},
-                                         {0x1237, "SERIAL_SLAVE_DOWN2"},
-                                         {0x1238, "SERIAL_SLAVE_DOWN3"},
-                                         {0x1300, "VERSION_MASTER"},
-                                         {0x1310, "VERSION_SLAVE_UP0"},
-                                         {0x1311, "VERSION_SLAVE_UP1"},
-                                         {0x1312, "VERSION_SLAVE_UP2"},
-                                         {0x1313, "VERSION_SLAVE_UP3"},
-                                         {0x1314, "VERSION_SLAVE_DOWN0"},
-                                         {0x1315, "VERSION_SLAVE_DOWN1"},
-                                         {0x1316, "VERSION_SLAVE_DOWN2"},
-                                         {0x1317, "VERSION_SLAVE_DOWN3"},
-                                         {0x1350, "DAISY_MIN_VERSION"},
-                                         {0x1351, "DAISY_NUM_SLAVES"},
-                                         {0x1500, "DAISY_DFU_STATUS"},
-                                         {0x1600, "STATE_MUTED"},
-                                         {0x1601, "STATE_HOOK_OFF"},
-                                         {0x1602, "STATE_VOLUME"},
-                                         {0x1603, "STATE_LED"},
-                                         {0x1604, "STATE_UPTIME"},
-                                         {0x1605, "STATE_SHARC_ALIVE"},
-                                         {0x5001, "SPI_QUEUE_STATUS"},
-                                         {0}};
+static struct diag_command commands[] = {
+        {0x1230, "SERIAL_MASTER"},
+        {0x1231, "SERIAL_SLAVE_UP0"},
+        {0x1232, "SERIAL_SLAVE_UP1"},
+        {0x1233, "SERIAL_SLAVE_UP2"},
+        {0x1234, "SERIAL_SLAVE_UP3"},
+        {0x1235, "SERIAL_SLAVE_DOWN0"},
+        {0x1236, "SERIAL_SLAVE_DOWN1"},
+        {0x1237, "SERIAL_SLAVE_DOWN2"},
+        {0x1238, "SERIAL_SLAVE_DOWN3"},
+        {0x1300, "VERSION_MASTER"},
+        {0x1310, "VERSION_SLAVE_UP0"},
+        {0x1311, "VERSION_SLAVE_UP1"},
+        {0x1312, "VERSION_SLAVE_UP2"},
+        {0x1313, "VERSION_SLAVE_UP3"},
+        {0x1314, "VERSION_SLAVE_DOWN0"},
+        {0x1315, "VERSION_SLAVE_DOWN1"},
+        {0x1316, "VERSION_SLAVE_DOWN2"},
+        {0x1317, "VERSION_SLAVE_DOWN3"},
+        {0x1350, "DAISY_MIN_VERSION"},
+        {0x1351, "DAISY_NUM_SLAVES"},
+        {0x1500, "DAISY_DFU_STATUS"},
+        {0x1600, "STATE_MUTED"},
+        {0x1601, "STATE_HOOK_OFF"},
+        {0x1602, "STATE_VOLUME"},
+        {0x1603, "STATE_LED"},
+        {0x1604, "STATE_UPTIME"},
+        {0x1605, "STATE_SHARC_ALIVE"},
+        {0x1700, "HW_ID"},
+        {0x1701, "USB_VOLTAGE"},
+        {0x1702, "MIC_CALIBRATION"},
+        {0x1703, "BOOT_PARTITION"},
+        {0x1800, "TV_MIC_SELECTION"},
+        {0x1801, "TV_ERLE_MIN"},
+        {0x1802, "TV_ERLE_MAX"},
+        {0x1803, "TV_ERLE_MEAN"},
+        {0x1804, "TV_FEEDBACK_EST_MIN"},
+        {0x1805, "TV_FEEDBACK_EST_MAX"},
+        {0x1806, "TV_FEEDBACK_EST_MEAN"},
+        {0x1807, "TV_ROOM_T60_EST"},
+        {0x1808, "TV_NR_MIN"},
+        {0x1809, "TV_NR_MAX"},
+        {0x180A, "TV_NR_MEAN"},
+        {0x180B, "TV_MIC_AVE_MIN"},
+        {0x180C, "TV_MIC_AVE_MAX"},
+        {0x180D, "TV_MIC_AVE_MEAN"},
+        {0x180E, "TV_LS_NOISE_MIN"},
+        {0x180F, "TV_LS_NOISE_MAX"},
+        {0x1810, "TV_LS_NOISE_MEAN"},
+        {0x1811, "TV_MIC_NOISE_MIN"},
+        {0x1812, "TV_MIC_NOISE_MAX"},
+        {0x1813, "TV_MIC_NOISE_MEAN"},
+        {0x5000, "STR_READ_TOUCH_REGISTER"},
+        {0x5001, "STR_SPI_QUEUE_STATUS"},
+        {0x5002, "STR_TOUCH_ANALOG_CALIBRATION_STATUS"},
+        {0x5003, "STR_RF_NOISE_DETECTION"},
+        {0x5004, "STR_NR_BUTTON_PRESSES"},
+        {0}};
 
 struct report {
     uint8_t report_id;
@@ -108,8 +137,8 @@ get_report(int fd, struct report *report)
         do {
             FD_ZERO(&readset);
             FD_SET(fd, &readset);
-            tv.tv_sec = 0;
-            tv.tv_usec = 100000;
+            tv.tv_sec = 2;
+            tv.tv_usec = 200000;
             retval = select(fd + 1, &readset, NULL, NULL, &tv);
             if ((retval <= 0) && (errno != EINTR)) {
                 return -1;
