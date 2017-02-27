@@ -8,6 +8,6 @@
 #define UPGRADE_H
 
 int
-upgrade(int argc, char **argv);
+cmd_upgrade(int argc, char **argv);
 
 #endif

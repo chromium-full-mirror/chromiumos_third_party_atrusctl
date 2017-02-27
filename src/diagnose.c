@@ -6,6 +6,7 @@
 
 #include "diagnose.h"
 #include "device.h"
+#include "util.h"
 
 #include <argp.h>
 #include <fcntl.h>
@@ -16,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/select.h>
+#include <syslog.h>
 #include <unistd.h>
 
 struct arguments {
@@ -260,7 +262,7 @@ get_and_print_cmd(int fd, struct diag_command *cmd, struct report *report)
     if (retval == 0) {
         message = report->message;
     }
-    printf("0x%04X %s: %s\n", cmd->id, cmd->str, message);
+    psyslog(LOG_INFO, "0x%04X %s: %s", cmd->id, cmd->str, message);
 }
 
 static error_t
@@ -285,7 +287,7 @@ parser(int key, char *arg, struct argp_state *state)
 }
 
 int
-diagnose(int argc, char **argv)
+cmd_diagnose(int argc, char **argv)
 {
     char doc[] =
             "\n"
@@ -316,7 +318,7 @@ diagnose(int argc, char **argv)
             continue;
         }
 
-        printf("Diagnostics from %s\n", current->serial);
+        psyslog(LOG_INFO, "Diagnostics from %s", current->serial);
 
         struct report report;
         report.report_id = arguments.report_id;

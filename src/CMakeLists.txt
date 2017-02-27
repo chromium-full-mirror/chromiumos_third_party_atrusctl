@@ -3,6 +3,7 @@ add_definitions(-D_GNU_SOURCE)
 add_executable(atrusctl
                atrusctl.c
                crc32.c
+               daemon.c
                diagnose.c
                list.c
                upgrade.c

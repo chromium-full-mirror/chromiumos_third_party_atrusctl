@@ -8,6 +8,6 @@
 #define DIAGNOSE_H
 
 int
-diagnose(int argc, char **argv);
+cmd_diagnose(int argc, char **argv);
 
 #endif

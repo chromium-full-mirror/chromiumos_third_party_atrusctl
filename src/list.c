@@ -10,19 +10,15 @@
 
 #include <argp.h>
 #include <libusb-1.0/libusb.h>
-#include <stdio.h>
 #include <string.h>
+#include <syslog.h>
 
 static void
 print_info(libusb_context *context)
 {
     libusb_device **devices;
 
-    int length = printf("%-20s %s\n", "Serial number", "Release number");
-    for (int i = 0; i < (length - 1); ++i) {
-        putchar('-');
-    }
-    putchar('\n');
+    psyslog(LOG_INFO, "%-20s %s", "Serial number", "Release number");
 
     ssize_t num_devices = libusb_get_device_list(context, &devices);
     for (ssize_t i = 0; i < num_devices; ++i) {
@@ -59,12 +55,12 @@ print_info(libusb_context *context)
         int major, minor, patch;
         bcd_to_version(device_desc.bcdDevice, &major, &minor, &patch);
 
-        printf("%-20s %d.%d.%d\n", serial, major, minor, patch);
+        psyslog(LOG_INFO, "%-20s %d.%d.%d", serial, major, minor, patch);
     }
 }
 
 int
-list(int argc, char **argv)
+cmd_list(int argc, char **argv)
 {
     int retval = argp_parse(NULL, argc, argv, 0, NULL, NULL);
     if (retval < 0) {

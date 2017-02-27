@@ -10,13 +10,11 @@
 #include "util.h"
 
 #include <argp.h>
-#include <errno.h>
 #include <libusb-1.0/libusb.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
-#include <time.h>
+#include <syslog.h>
 #include <unistd.h>
 
 enum dfu_state {
@@ -90,10 +88,7 @@ struct arguments {
     struct dfu_suffix dfu_suffix;
     bool force;
     bool retry;
-    bool debug;
 };
-
-static bool debug;
 
 static const char *
 status_to_string(enum dfu_status status)
@@ -196,10 +191,6 @@ parser(int key, char *arg, struct argp_state *state)
             arguments->retry = true;
             break;
 
-        case 'd':
-            arguments->debug = true;
-            break;
-
         case ARGP_KEY_ARG:
             if (state->arg_num >= 1) {
                 argp_usage(state);
@@ -272,9 +263,9 @@ dfu_get_status(libusb_device_handle *device,
     status->bState = buffer[4];
     status->iString = buffer[5];
 
-    if (debug) {
-        printf("DFU retval=%d, state=0x%X, status=0x%02X\n", retval,
-               status->bState, status->bStatus);
+    if (is_debug) {
+        psyslog(LOG_DEBUG, "DFU retval=%d, state=0x%X, status=0x%02X", retval,
+                status->bState, status->bStatus);
     }
 
     return retval;
@@ -401,8 +392,8 @@ set_devices_in_dfu_mode(libusb_context *context,
                 >= 0)) {
             int major, minor, patch;
             bcd_to_version(device_desc.bcdDevice, &major, &minor, &patch);
-            printf("Skipping %s with version %d.%d.%d\n", serial, major, minor,
-                   patch);
+            psyslog(LOG_INFO, "Skipping %s with version %d.%d.%d", serial,
+                    major, minor, patch);
             goto release_handle;
         }
 
@@ -421,7 +412,7 @@ set_devices_in_dfu_mode(libusb_context *context,
             goto release_handle;
         }
 
-        printf("Setting %s in DFU mode\n", serial);
+        psyslog(LOG_INFO, "Setting %s in DFU mode", serial);
         dfu_detach(handle, interface, 16);
         libusb_reset_device(handle);
 
@@ -438,7 +429,7 @@ on_dfu_error(libusb_device_handle *handle, uint16_t interface)
 
     int retval = dfu_get_status(handle, interface, &status_req);
     if (retval < 0) {
-        fprintf(stderr, "Could not get status of the device\n");
+        psyslog(LOG_ERR, "Could not get status of the device");
         return;
     }
 
@@ -464,31 +455,9 @@ on_dfu_error(libusb_device_handle *handle, uint16_t interface)
     } else {
         strncpy(status_string, status_to_string(status), string_length);
     }
-    fprintf(stderr, "Error: %s\n", status_string);
+    psyslog(LOG_ERR, "%s", status_string);
 
     dfu_clr_status(handle, interface);
-}
-
-static void
-timeout(long ms)
-{
-    int retval;
-    struct timespec sleep_req;
-    struct timespec sleep_rem;
-
-    sleep_req.tv_sec = ms / 1000;
-    sleep_req.tv_nsec = (ms % 1000) * 1000000;
-
-    do {
-        retval = nanosleep(&sleep_req, &sleep_rem);
-        if (retval < 0) {
-            if (errno != EINTR) {
-                return;
-            }
-            sleep_req.tv_sec = sleep_rem.tv_sec;
-            sleep_req.tv_nsec = sleep_rem.tv_nsec;
-        }
-    } while (retval != 0);
 }
 
 static int
@@ -625,8 +594,8 @@ perform_dfu(libusb_context *context,
         if (!dfu_desc.bmAttributes.bitCanDnload
             || !dfu_desc.bmAttributes.bitManifestationTolerant
             || dfu_desc.bmAttributes.bitWillDetach) {
-            fprintf(stderr,
-                    "Found %s with unsupported USB DFU interface descriptor\n",
+            psyslog(LOG_ERR,
+                    "Found %s with unsupported USB DFU interface descriptor",
                     serial);
             goto release_handle;
         }
@@ -642,8 +611,8 @@ perform_dfu(libusb_context *context,
 
         int major, minor, patch;
         bcd_to_version(device_desc.bcdDevice, &major, &minor, &patch);
-        printf("Upgrading %s from version %d.%d.%d\n", serial, major, minor,
-               patch);
+        psyslog(LOG_INFO, "Upgrading %s from version %d.%d.%d", serial, major,
+                minor, patch);
         const int max_retries = 3;
         int retries = 0;
         do {
@@ -668,22 +637,23 @@ perform_dfu(libusb_context *context,
                 dfu_get_status(handle, interface, &status_req);
             }
             if (status_req.bState != STATE_dfuIDLE) {
-                fprintf(stderr,
-                        "Device %s is not in a proper state for upgrading\n",
+                psyslog(LOG_ERR,
+                        "Device %s is not in a proper state for upgrading",
                         serial);
                 goto usb_reset;
             }
 
             retval = download_file(handle, interface, file);
             if (retval < 0) {
-                printf("Upgrade failed on %s\n", serial);
+                psyslog(LOG_WARNING, "Upgrade failed on %s", serial);
                 ++retries;
                 if (retries <= max_retries) {
-                    printf("Retrying upgrade on %s, attempt %d/%d\n", serial,
-                           retries, max_retries);
+                    psyslog(LOG_WARNING,
+                            "Retrying upgrade on %s, attempt %d/%d", serial,
+                            retries, max_retries);
                 }
             } else {
-                printf("Upgrade successful on %s\n", serial);
+                psyslog(LOG_INFO, "Upgrade successful on %s", serial);
                 ++(*num_successful);
             }
         } while ((retval < 0) && (retries <= max_retries));
@@ -699,7 +669,7 @@ perform_dfu(libusb_context *context,
 }
 
 int
-upgrade(int argc, char **argv)
+cmd_upgrade(int argc, char **argv)
 {
     char args_doc[] = "FILE";
     char doc[] =
@@ -709,7 +679,6 @@ upgrade(int argc, char **argv)
             {"force", 'f', NULL, 0,
              "Try to upgrade devices with newer version than FILE", 0},
             {"retry", 'r', NULL, 0, "Retry if no devices are found", 0},
-            {"debug", 'd', NULL, 0, "Debug output", 1},
             {0}};
     struct argp argp = {options, parser, args_doc, doc, NULL, NULL, NULL};
     struct arguments arguments = {0};
@@ -718,8 +687,6 @@ upgrade(int argc, char **argv)
     if (retval < 0) {
         goto close_file;
     }
-
-    debug = arguments.debug;
 
     libusb_context *context;
     retval = libusb_init(&context);
@@ -732,7 +699,8 @@ upgrade(int argc, char **argv)
 
     int major, minor, patch;
     bcd_to_version(arguments.dfu_suffix.bcdDevice, &major, &minor, &patch);
-    printf("Starting upgrade to version %d.%d.%d\n", major, minor, patch);
+    psyslog(LOG_INFO, "Starting upgrade to version %d.%d.%d", major, minor,
+            patch);
 
     struct dfu_suffix suffix = arguments.dfu_suffix;
     set_devices_in_dfu_mode(context, &suffix, !arguments.force);
@@ -752,7 +720,8 @@ upgrade(int argc, char **argv)
             break;
         }
 
-        printf("No devices in DFU mode found, retrying in %u s\n", backoff);
+        psyslog(LOG_WARNING, "No devices in DFU mode found, retrying in %u s",
+                backoff);
         sleep(backoff);
         backoff *= 2;
     } while ((retval <= 0) && (backoff < limit));
@@ -760,7 +729,7 @@ upgrade(int argc, char **argv)
     if (retval > 0) {
         retval = 0;
     }
-    printf("Upgrade succeeded on %d device(s)\n", num_successful);
+    psyslog(LOG_INFO, "Upgrade succeeded on %d device(s)", num_successful);
 
     libusb_exit(context);
 

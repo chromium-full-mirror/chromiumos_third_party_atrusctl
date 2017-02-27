@@ -8,6 +8,6 @@
 #define LIST_H
 
 int
-list(int argc, char **argv);
+cmd_list(int argc, char **argv);
 
 #endif
