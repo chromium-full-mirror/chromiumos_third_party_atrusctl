@@ -14,4 +14,4 @@ target_link_libraries(atrusctl
                       ${libudev_LIBRARIES}
                       ${libusb_LIBRARIES})
 
-install(TARGETS atrusctl DESTINATION bin)
+install(TARGETS atrusctl DESTINATION sbin)

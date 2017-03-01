@@ -1,0 +1,12 @@
+SUBSYSTEM=="usb", ENV{ID_VENDOR_ID}=="18d1", ENV{ID_MODEL_ID}=="8001", GOTO="atrus_action"
+
+GOTO="atrus_end"
+
+LABEL="atrus_action"
+
+ACTION=="add", RUN+="/bin/mkdir -p /run/atrusctl"
+ACTION=="add", RUN+="/usr/sbin/atrusctl daemon /lib/firmware/limes_audio/atrus-fw-bundle.bin"
+
+ACTION=="remove", RUN+="/usr/sbin/atrusctl daemon --stop"
+
+LABEL="atrus_end"
