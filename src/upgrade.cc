@@ -180,7 +180,8 @@ is_correct_usb_id(struct dfu_suffix *suffix)
 static error_t
 parser(int key, char *arg, struct argp_state *state)
 {
-    struct arguments *arguments = state->input;
+    struct arguments *arguments =
+        reinterpret_cast<struct arguments*>(state->input);
 
     switch (key) {
         case 'f':
@@ -378,6 +379,7 @@ set_devices_in_dfu_mode(libusb_context *context,
             continue;
         }
 
+        int config;
         if (only_lower_version
             && (version_compare(device_desc.bcdDevice, dfu_suffix->bcdDevice)
                 >= 0)) {
@@ -388,7 +390,6 @@ set_devices_in_dfu_mode(libusb_context *context,
             goto release_handle;
         }
 
-        int config;
         if (libusb_get_configuration(handle, &config) < 0) {
             goto release_handle;
         }
@@ -591,53 +592,59 @@ perform_dfu(libusb_context *context,
             goto release_handle;
         }
 
-        int major, minor, patch;
-        bcd_to_version(device_desc.bcdDevice, &major, &minor, &patch);
-        psyslog(LOG_INFO, "Upgrading device from version %d.%d.%d", major,
-                minor, patch);
-        const int max_retries = 3;
-        int retries = 0;
-        do {
-            // Check that the device is in a proper state for beginning download
-            struct dfu_status_request status_req;
-            dfu_get_status(handle, interface, &status_req);
-            switch (status_req.bState) {
-                case STATE_dfuIDLE:
-                case STATE_dfuDNLOAD_SYNC:
-                case STATE_dfuDNLOAD_IDLE:
-                case STATE_dfuMANIFEST_SYNC:
-                case STATE_dfuUPLOAD_IDLE:
-                    dfu_abort(handle, interface);
-                    break;
-                default:
-                    break;
-            }
-            dfu_get_status(handle, interface, &status_req);
-            if (status_req.bState == STATE_dfuERROR) {
-                // Silently ignore any previous error state and reset to dfuIDLE
-                dfu_clr_status(handle, interface);
+        // The rest of this code is in a new block so that the above gotos do
+        // not skip new variables in the same scope.
+        {
+            int major, minor, patch;
+            bcd_to_version(device_desc.bcdDevice, &major, &minor, &patch);
+            psyslog(LOG_INFO, "Upgrading device from version %d.%d.%d", major,
+                    minor, patch);
+            const int max_retries = 3;
+            int retries = 0;
+            do {
+                // Check that the device is in a proper state for beginning
+                // download
+                struct dfu_status_request status_req;
                 dfu_get_status(handle, interface, &status_req);
-            }
-            if (status_req.bState != STATE_dfuIDLE) {
-                psyslog(LOG_ERR,
-                        "Device is not in a proper state for upgrading");
-                goto usb_reset;
-            }
-
-            retval = download_file(handle, interface, file);
-            if (retval < 0) {
-                psyslog(LOG_WARNING, "Upgrade failed on device");
-                ++retries;
-                if (retries <= max_retries) {
-                    psyslog(LOG_WARNING,
-                            "Retrying upgrade on device, attempt %d/%d",
-                            retries, max_retries);
+                switch (status_req.bState) {
+                    case STATE_dfuIDLE:
+                    case STATE_dfuDNLOAD_SYNC:
+                    case STATE_dfuDNLOAD_IDLE:
+                    case STATE_dfuMANIFEST_SYNC:
+                    case STATE_dfuUPLOAD_IDLE:
+                        dfu_abort(handle, interface);
+                        break;
+                    default:
+                        break;
                 }
-            } else {
-                psyslog(LOG_INFO, "Upgrade successful on device");
-                ++(*num_successful);
-            }
-        } while ((retval < 0) && (retries <= max_retries));
+                dfu_get_status(handle, interface, &status_req);
+                if (status_req.bState == STATE_dfuERROR) {
+                    // Silently ignore any previous error state and reset to
+                    // dfuIDLE
+                    dfu_clr_status(handle, interface);
+                    dfu_get_status(handle, interface, &status_req);
+                }
+                if (status_req.bState != STATE_dfuIDLE) {
+                    psyslog(LOG_ERR,
+                            "Device is not in a proper state for upgrading");
+                    goto usb_reset;
+                }
+
+                retval = download_file(handle, interface, file);
+                if (retval < 0) {
+                    psyslog(LOG_WARNING, "Upgrade failed on device");
+                    ++retries;
+                    if (retries <= max_retries) {
+                        psyslog(LOG_WARNING,
+                                "Retrying upgrade on device, attempt %d/%d",
+                                retries, max_retries);
+                    }
+                } else {
+                    psyslog(LOG_INFO, "Upgrade successful on device");
+                    ++(*num_successful);
+                }
+            } while ((retval < 0) && (retries <= max_retries));
+        }
 
     usb_reset:
         libusb_reset_device(handle);
@@ -663,13 +670,12 @@ cmd_upgrade(int argc, char **argv)
             {0}};
     struct argp argp = {options, parser, args_doc, doc, NULL, NULL, NULL};
     struct arguments arguments = {0};
+    libusb_context *context;
 
     int retval = argp_parse(&argp, argc, argv, ARGP_IN_ORDER, NULL, &arguments);
     if (retval < 0) {
         goto close_file;
     }
-
-    libusb_context *context;
     retval = libusb_init(&context);
     if (retval < 0) {
         goto close_file;
@@ -678,39 +684,44 @@ cmd_upgrade(int argc, char **argv)
     libusb_set_debug(NULL, LIBUSB_LOG_LEVEL_WARNING);
     libusb_set_debug(context, LIBUSB_LOG_LEVEL_WARNING);
 
-    int major, minor, patch;
-    bcd_to_version(arguments.dfu_suffix.bcdDevice, &major, &minor, &patch);
-    psyslog(LOG_INFO, "Starting upgrade to version %d.%d.%d", major, minor,
-            patch);
+    // The rest of this code is in a new block so that the above gotos do not
+    // skip new variables in the same scope.
+    {
+        int major, minor, patch;
+        bcd_to_version(arguments.dfu_suffix.bcdDevice, &major, &minor, &patch);
+        psyslog(LOG_INFO, "Starting upgrade to version %d.%d.%d", major, minor,
+                patch);
 
-    struct dfu_suffix suffix = arguments.dfu_suffix;
-    set_devices_in_dfu_mode(context, &suffix, !arguments.force);
+        struct dfu_suffix suffix = arguments.dfu_suffix;
+        set_devices_in_dfu_mode(context, &suffix, !arguments.force);
 
-    // Make sure devices have time to re-enumerate in DFU mode
-    timeout(1000);
+        // Make sure devices have time to re-enumerate in DFU mode
+        timeout(1000);
 
-    unsigned int backoff = 1;
-    const unsigned int limit = 64;
-    int num_successful = 0;
-    do {
-        retval = perform_dfu(context, &suffix, arguments.file, &num_successful);
+        unsigned int backoff = 1;
+        const unsigned int limit = 64;
+        int num_successful = 0;
+        do {
+            retval =
+                perform_dfu(context, &suffix, arguments.file, &num_successful);
+            if (retval > 0) {
+                break;
+            }
+            if (!arguments.retry) {
+                break;
+            }
+
+            psyslog(LOG_WARNING,
+                    "No devices in DFU mode found, retrying in %u s", backoff);
+            sleep(backoff);
+            backoff *= 2;
+        } while ((retval <= 0) && (backoff < limit));
+
         if (retval > 0) {
-            break;
+            retval = 0;
         }
-        if (!arguments.retry) {
-            break;
-        }
-
-        psyslog(LOG_WARNING, "No devices in DFU mode found, retrying in %u s",
-                backoff);
-        sleep(backoff);
-        backoff *= 2;
-    } while ((retval <= 0) && (backoff < limit));
-
-    if (retval > 0) {
-        retval = 0;
+        psyslog(LOG_INFO, "Upgrade succeeded on %d device(s)", num_successful);
     }
-    psyslog(LOG_INFO, "Upgrade succeeded on %d device(s)", num_successful);
 
     libusb_exit(context);
 

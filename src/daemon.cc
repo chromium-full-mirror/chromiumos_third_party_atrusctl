@@ -58,7 +58,8 @@ daemon_send_cmd(const char *cmd)
     if (retval < 0) {
         return -errno;
     }
-    retval = connect(fd, &address, sizeof(address));
+    retval = connect(fd, reinterpret_cast<struct sockaddr*>(&address),
+                     sizeof(address));
     if (retval < 0) {
         return -errno;
     }
@@ -131,7 +132,8 @@ daemon_init(int *fd)
     if (retval < 0) {
         return -1;
     }
-    retval = connect(*fd, &address, sizeof(address));
+    retval = connect(*fd, reinterpret_cast<struct sockaddr*>(&address),
+                     sizeof(address));
     if ((retval < 0) && (errno == ECONNREFUSED)) {
         fprintf(stderr, "Stale socket %s detected, removing\n", socket_path);
         retval = unlink(socket_path);
@@ -140,7 +142,8 @@ daemon_init(int *fd)
             return -1;
         }
     }
-    retval = bind(*fd, &address, sizeof(address));
+    retval = bind(*fd, reinterpret_cast<struct sockaddr*>(&address),
+                  sizeof(address));
     if (retval < 0) {
         perror("bind");
         return -1;
@@ -179,7 +182,8 @@ daemon_exit(int fd)
 static error_t
 parser(int key, char *arg, struct argp_state *state)
 {
-    struct arguments *arguments = state->input;
+    struct arguments *arguments =
+        reinterpret_cast<struct arguments*>(state->input);
 
     switch (key) {
         case 1:

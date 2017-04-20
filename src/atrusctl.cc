@@ -35,7 +35,7 @@ cmd_prepare(struct argp_state *state, struct arguments *arguments)
     char **argv = &state->argv[state->next - 1];
 
     char *cmd_name = argv[0];
-    argv[0] = malloc(strlen(state->name) + 1 + strlen(cmd_name) + 1);
+    argv[0] = new char [strlen(state->name) + 1 + strlen(cmd_name) + 1];
     if (!argv[0]) {
         argp_failure(state, 1, ENOMEM, NULL);
     }
@@ -48,7 +48,8 @@ cmd_prepare(struct argp_state *state, struct arguments *arguments)
 static error_t
 parser(int key, char *arg, struct argp_state *state)
 {
-    struct arguments *arguments = state->input;
+    struct arguments *arguments =
+        reinterpret_cast<struct arguments *>(state->input);
 
     switch (key) {
         case 1:
@@ -114,7 +115,7 @@ main(int argc, char **argv)
     is_debug = arguments.debug;
 
     retval = arguments.func(arguments.argc, arguments.argv);
-    free(arguments.argv[0]);
+    delete [] arguments.argv[0];
     if (retval < 0) {
         return 1;
     }

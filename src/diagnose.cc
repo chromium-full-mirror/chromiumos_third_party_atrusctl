@@ -182,6 +182,7 @@ get_hidraw_devices(struct hidraw_dev **head)
     udev_enumerate_scan_devices(enumerate);
 
     struct hidraw_dev *current = NULL;
+    struct hidraw_dev *prev = NULL;
     struct udev_list_entry *devices = udev_enumerate_get_list_entry(enumerate);
     struct udev_list_entry *dev_list_entry;
     udev_list_entry_foreach(dev_list_entry, devices)
@@ -198,13 +199,13 @@ get_hidraw_devices(struct hidraw_dev **head)
         }
 
         uint16_t idVendor;
+        uint16_t idProduct;
         const char *attr = udev_device_get_sysattr_value(parent, "idVendor");
         int retval = str_to_uint16(attr, &idVendor);
         if (retval < 0) {
             goto unref;
         }
 
-        uint16_t idProduct;
         attr = udev_device_get_sysattr_value(parent, "idProduct");
         retval = str_to_uint16(attr, &idProduct);
         if (retval < 0) {
@@ -215,24 +216,28 @@ get_hidraw_devices(struct hidraw_dev **head)
             goto unref;
         }
 
-        struct hidraw_dev *prev = current;
-        current = calloc(1, sizeof(*current));
-        if (*head == NULL) {
-            *head = current;
-        }
+        // The rest of this code is in a new block so that the above gotos do
+        // not skip new variables in the same scope.
+        {
+            struct hidraw_dev *prev = current;
+            current = new struct hidraw_dev;
+            memset(current, 0, sizeof(*current));
+            if (*head == NULL) {
+                *head = current;
+            }
 
-        size_t dev_node_length = strlen(dev_node_path) + 1;
-        current->path = malloc(sizeof(*current->path) * dev_node_length);
-        strncpy(current->path, dev_node_path, dev_node_length);
+            size_t dev_node_length = strlen(dev_node_path) + 1;
+            current->path = new char[sizeof(*current->path) * dev_node_length];
+            strncpy(current->path, dev_node_path, dev_node_length);
 
-        if (prev) {
-            prev->next = current;
+            if (prev) {
+                prev->next = current;
+            }
         }
 
     unref:
         udev_device_unref(dev);
     }
-
     udev_enumerate_unref(enumerate);
     udev_unref(udev);
 
@@ -253,7 +258,8 @@ get_and_print_cmd(int fd, struct diag_command *cmd, struct report *report)
 static error_t
 parser(int key, char *arg, struct argp_state *state)
 {
-    struct arguments *arguments = state->input;
+    struct arguments *arguments =
+        reinterpret_cast<struct arguments*>(state->input);
 
     switch (key) {
         case 'd':
@@ -333,8 +339,8 @@ cmd_diagnose(int argc, char **argv)
     current = devs;
     while (current) {
         struct hidraw_dev *next = current->next;
-        free(current->path);
-        free(current);
+        delete [] current->path;
+        delete current;
         current = next;
     }
 
