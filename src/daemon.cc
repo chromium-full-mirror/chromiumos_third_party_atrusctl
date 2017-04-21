@@ -19,19 +19,39 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#define CMD_LENGTH 8
+#define CMD_LENGTH 16
+
+bool is_daemon;
+
+static bool do_run;
+static bool do_diag;
+static const char socket_path[] = "/run/atrusctl/atrusctl.socket";
+
+enum cmd_key {
+    cmd_unknown = -1,
+    cmd_stop = 0,
+    cmd_disable_diag,
+    cmd_enable_diag,
+    cmd_numkeys
+};
+
+struct cmd_sym {
+    const char *str;
+    enum cmd_key val;
+};
 
 struct arguments {
     bool stop;
     char *upgrade_file_path;
     unsigned int diag_interval;
+    enum cmd_key cmd;
 };
 
-bool is_daemon;
-
-static bool do_run;
-static const char socket_path[] = "/run/atrusctl/atrusctl.socket";
-static const char cmd_stop[] = "stop";
+static const struct cmd_sym cmd_lookup_table[] = {
+        {"stop", cmd_stop},
+        {"diag_off", cmd_disable_diag},
+        {"diag_on", cmd_enable_diag},
+        {0}};
 
 static int
 socket_init(int *fd, struct sockaddr_un *address)
@@ -74,9 +94,34 @@ daemon_send_cmd(const char *cmd)
     return 0;
 }
 
+static enum cmd_key
+cmd_from_string(const char *str)
+{
+    const struct cmd_sym *sym;
+    for (sym = cmd_lookup_table; (*sym).str; ++sym) {
+        if (strncmp(sym->str, str, CMD_LENGTH) == 0) {
+            return sym->val;
+        }
+    }
+    return cmd_unknown;
+}
+
+static const char *
+string_from_cmd(enum cmd_key cmd)
+{
+    const struct cmd_sym *sym;
+    for (sym = cmd_lookup_table; (*sym).str; ++sym) {
+        if (sym->val == cmd) {
+            return sym->str;
+        }
+    }
+    return NULL;
+}
+
 static int
 wait_for_command(int fd, unsigned int timeout)
 {
+    enum cmd_key cmd;
     struct pollfd fds = {.fd = fd, .events = POLLIN, .revents = POLLIN};
     int retval = poll(&fds, 1, timeout * 1000);
     if (retval < 0) {
@@ -91,12 +136,24 @@ wait_for_command(int fd, unsigned int timeout)
         if (retval < 0) {
             psyslog(LOG_ERR, "read: %m");
         } else {
-            retval = strncmp(buffer, cmd_stop, CMD_LENGTH);
-            if (retval == 0) {
-                do_run = false;
-            } else {
-                psyslog(LOG_WARNING, "Received unknown command from socket: %s",
-                        buffer);
+            cmd = cmd_from_string(buffer);
+            switch (cmd) {
+                case cmd_stop:
+                    do_run = false;
+                    break;
+                case cmd_disable_diag:
+                    do_diag = false;
+                    psyslog(LOG_INFO, "Diagnostics disabled");
+                    break;
+                case cmd_enable_diag:
+                    do_diag = true;
+                    psyslog(LOG_INFO, "Diagnostics enabled");
+                    break;
+                case cmd_numkeys:
+                case cmd_unknown:
+                    psyslog(LOG_WARNING,
+                            "Received unknown command from socket: %s", buffer);
+                    break;
             }
         }
     }
@@ -116,7 +173,9 @@ daemon_loop(int fd, unsigned int diag_interval, char *upgrade_file_path)
     char *diag_argv[] = {"diagnose"};
     int diag_argc = sizeof(diag_argv) / sizeof(diag_argv[0]);
     while (do_run) {
-        cmd_diagnose(diag_argc, diag_argv);
+        if (do_diag) {
+            cmd_diagnose(diag_argc, diag_argv);
+        }
         int retval = wait_for_command(fd, diag_interval);
         if (retval < 0) {
             do_run = false;
@@ -158,6 +217,7 @@ daemon_init(int *fd)
 
     is_daemon = true;
     do_run = true;
+    do_diag = true;
 
     openlog(NULL, 0, LOG_DAEMON);
 
@@ -191,7 +251,15 @@ parser(int key, char *arg, struct argp_state *state)
             break;
 
         case 2:
-            arguments->stop = true;
+            arguments->cmd = cmd_stop;
+            break;
+
+        case 3:
+            arguments->cmd = cmd_disable_diag;
+            break;
+
+        case 4:
+            arguments->cmd = cmd_enable_diag;
             break;
 
         case ARGP_KEY_ARG:
@@ -203,7 +271,7 @@ parser(int key, char *arg, struct argp_state *state)
             break;
 
         case ARGP_KEY_END:
-            if ((state->arg_num < 1) && !arguments->stop) {
+            if ((state->arg_num < 1) && (arguments->cmd == cmd_unknown)) {
                 argp_usage(state);
             }
             break;
@@ -225,36 +293,48 @@ cmd_daemon(int argc, char **argv)
     struct argp_option options[] = {
             {"diag-interval", 1, "s", 0, "Polling interval for diagnostics", 0},
             {"stop", 2, NULL, 0, "Stop running daemon", 0},
+            {"diag-disable", 3, NULL, 0, "Disable diagnostics", 0},
+            {"diag-enable", 4, NULL, 0, "Enable diagnostics", 0},
             {0}};
     struct argp argp = {options, parser, args_doc, doc, NULL, NULL, NULL};
     struct arguments arguments = {
-            .stop = false, .upgrade_file_path = "", .diag_interval = 60};
+            .upgrade_file_path = "", .diag_interval = 60, .cmd = cmd_unknown};
 
     int retval = argp_parse(&argp, argc, argv, ARGP_IN_ORDER, NULL, &arguments);
     if (retval < 0) {
         return -1;
     }
 
-    if (arguments.stop) {
-        retval = daemon_send_cmd(cmd_stop);
-        if (retval < 0) {
-            if ((retval == -ENOENT) || (retval == -ECONNREFUSED)) {
-                fprintf(stderr, "No deamon is running\n");
-            } else {
-                fprintf(stderr, "stop: %s\n", strerror(-retval));
+    int fd;
+    const char *cmd;
+    switch (arguments.cmd) {
+        case cmd_stop:
+        case cmd_enable_diag:
+        case cmd_disable_diag:
+            cmd = string_from_cmd(arguments.cmd);
+            if (!cmd) {
+                return -1;
             }
-        }
-    } else {
-        int fd;
-        retval = daemon_init(&fd);
-        if (retval < 0) {
-            return -1;
-        }
-        psyslog(LOG_INFO, "%s started", argv[0]);
-        daemon_loop(fd, arguments.diag_interval, arguments.upgrade_file_path);
-        psyslog(LOG_INFO, "%s stopped", argv[0]);
-        daemon_exit(fd);
+            retval = daemon_send_cmd(cmd);
+            if (retval < 0) {
+                if ((retval == -ENOENT) || (retval == -ECONNREFUSED)) {
+                    fprintf(stderr, "No deamon is running\n");
+                } else {
+                    fprintf(stderr, "stop: %s\n", strerror(-retval));
+                }
+            }
+            break;
+        default:
+            retval = daemon_init(&fd);
+            if (retval < 0) {
+                return -1;
+            }
+            psyslog(LOG_INFO, "%s started", argv[0]);
+            daemon_loop(fd, arguments.diag_interval,
+                        arguments.upgrade_file_path);
+            psyslog(LOG_INFO, "%s stopped", argv[0]);
+            daemon_exit(fd);
+            break;
     }
-
     return 0;
 }
