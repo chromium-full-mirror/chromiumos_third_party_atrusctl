@@ -27,7 +27,6 @@ struct arguments {
 
 struct hidraw_dev {
     char *path;
-    char *serial;
     struct hidraw_dev *next;
 };
 
@@ -37,15 +36,6 @@ struct diag_command {
 };
 
 static struct diag_command commands[] = {
-        {0x1230, "SERIAL_MASTER"},
-        {0x1231, "SERIAL_SLAVE_UP0"},
-        {0x1232, "SERIAL_SLAVE_UP1"},
-        {0x1233, "SERIAL_SLAVE_UP2"},
-        {0x1234, "SERIAL_SLAVE_UP3"},
-        {0x1235, "SERIAL_SLAVE_DOWN0"},
-        {0x1236, "SERIAL_SLAVE_DOWN1"},
-        {0x1237, "SERIAL_SLAVE_DOWN2"},
-        {0x1238, "SERIAL_SLAVE_DOWN3"},
         {0x1300, "VERSION_MASTER"},
         {0x1310, "VERSION_SLAVE_UP0"},
         {0x1311, "VERSION_SLAVE_UP1"},
@@ -235,11 +225,6 @@ get_hidraw_devices(struct hidraw_dev **head)
         current->path = malloc(sizeof(*current->path) * dev_node_length);
         strncpy(current->path, dev_node_path, dev_node_length);
 
-        const char *serial = udev_device_get_sysattr_value(parent, "serial");
-        size_t serial_length = strlen(serial) + 1;
-        current->serial = malloc(sizeof(*current->serial) * serial_length);
-        strncpy(current->serial, serial, serial_length);
-
         if (prev) {
             prev->next = current;
         }
@@ -318,8 +303,6 @@ cmd_diagnose(int argc, char **argv)
             continue;
         }
 
-        psyslog(LOG_INFO, "Diagnostics from %s", current->serial);
-
         struct report report;
         report.report_id = arguments.report_id;
         char buf[report_length - report_header_length];
@@ -351,7 +334,6 @@ cmd_diagnose(int argc, char **argv)
     while (current) {
         struct hidraw_dev *next = current->next;
         free(current->path);
-        free(current->serial);
         free(current);
         current = next;
     }

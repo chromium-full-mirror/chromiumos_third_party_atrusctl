@@ -378,22 +378,13 @@ set_devices_in_dfu_mode(libusb_context *context,
             continue;
         }
 
-        size_t string_length = 256;
-        char serial[string_length];
-        retval = libusb_get_string_descriptor_ascii(
-                handle, device_desc.iSerialNumber, (unsigned char *)serial,
-                (int)string_length);
-        if (retval < 0) {
-            strncpy(serial, "<unknown>", string_length);
-        }
-
         if (only_lower_version
             && (version_compare(device_desc.bcdDevice, dfu_suffix->bcdDevice)
                 >= 0)) {
             int major, minor, patch;
             bcd_to_version(device_desc.bcdDevice, &major, &minor, &patch);
-            psyslog(LOG_INFO, "Skipping %s with version %d.%d.%d", serial,
-                    major, minor, patch);
+            psyslog(LOG_INFO, "Skipping device with version %d.%d.%d", major,
+                    minor, patch);
             goto release_handle;
         }
 
@@ -412,7 +403,7 @@ set_devices_in_dfu_mode(libusb_context *context,
             goto release_handle;
         }
 
-        psyslog(LOG_INFO, "Setting %s in DFU mode", serial);
+        psyslog(LOG_INFO, "Setting device in DFU mode");
         dfu_detach(handle, interface, 16);
         libusb_reset_device(handle);
 
@@ -582,21 +573,12 @@ perform_dfu(libusb_context *context,
             continue;
         }
 
-        size_t string_length = 256;
-        char serial[string_length];
-        retval = libusb_get_string_descriptor_ascii(
-                handle, device_desc.iSerialNumber, (unsigned char *)serial,
-                (int)string_length);
-        if (retval < 0) {
-            strncpy(serial, "<unknown>", string_length);
-        }
-
         if (!dfu_desc.bmAttributes.bitCanDnload
             || !dfu_desc.bmAttributes.bitManifestationTolerant
             || dfu_desc.bmAttributes.bitWillDetach) {
             psyslog(LOG_ERR,
-                    "Found %s with unsupported USB DFU interface descriptor",
-                    serial);
+                    "Found device with unsupported USB DFU interface "
+                    "descriptor");
             goto release_handle;
         }
 
@@ -611,7 +593,7 @@ perform_dfu(libusb_context *context,
 
         int major, minor, patch;
         bcd_to_version(device_desc.bcdDevice, &major, &minor, &patch);
-        psyslog(LOG_INFO, "Upgrading %s from version %d.%d.%d", serial, major,
+        psyslog(LOG_INFO, "Upgrading device from version %d.%d.%d", major,
                 minor, patch);
         const int max_retries = 3;
         int retries = 0;
@@ -638,22 +620,21 @@ perform_dfu(libusb_context *context,
             }
             if (status_req.bState != STATE_dfuIDLE) {
                 psyslog(LOG_ERR,
-                        "Device %s is not in a proper state for upgrading",
-                        serial);
+                        "Device is not in a proper state for upgrading");
                 goto usb_reset;
             }
 
             retval = download_file(handle, interface, file);
             if (retval < 0) {
-                psyslog(LOG_WARNING, "Upgrade failed on %s", serial);
+                psyslog(LOG_WARNING, "Upgrade failed on device");
                 ++retries;
                 if (retries <= max_retries) {
                     psyslog(LOG_WARNING,
-                            "Retrying upgrade on %s, attempt %d/%d", serial,
+                            "Retrying upgrade on device, attempt %d/%d",
                             retries, max_retries);
                 }
             } else {
-                psyslog(LOG_INFO, "Upgrade successful on %s", serial);
+                psyslog(LOG_INFO, "Upgrade successful on device");
                 ++(*num_successful);
             }
         } while ((retval < 0) && (retries <= max_retries));
