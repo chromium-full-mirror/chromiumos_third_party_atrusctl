@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include "daemon.h"
 #include "diagnose.h"
 #include "upgrade.h"
 #include "util.h"
@@ -23,10 +22,11 @@
 #define CMD_LENGTH 16
 
 bool is_daemon;
+bool is_debug;
 
 static bool do_run;
 static bool do_diag;
-static const char socket_path[] = "/run/atrusctl/atrusctl.socket";
+static const char socket_path[] = "/run/atrusd/atrusd.socket";
 
 enum cmd_key {
     cmd_unknown = -1,
@@ -42,6 +42,7 @@ struct cmd_sym {
 };
 
 struct arguments {
+    bool debug;
     bool stop;
     const char *upgrade_file_path;
     unsigned int diag_interval;
@@ -283,6 +284,10 @@ parser(int key, char *arg, struct argp_state *state)
                     static_cast<unsigned int>(strtol(arg, NULL, 0));
             break;
 
+        case 6:
+            arguments->debug = true;
+            break;
+
         case ARGP_KEY_ARG:
             if (state->arg_num >= 1) {
                 argp_usage(state);
@@ -305,7 +310,7 @@ parser(int key, char *arg, struct argp_state *state)
 }
 
 int
-cmd_daemon(int argc, char **argv)
+main(int argc, char **argv)
 {
     char args_doc[] = "FILE";
     char doc[] =
@@ -318,10 +323,12 @@ cmd_daemon(int argc, char **argv)
             {"diag-disable", 3, NULL, 0, "Disable diagnostics", 0},
             {"diag-enable", 4, NULL, 0, "Enable diagnostics", 0},
             {"ext-diag-interval", 5, "s", 0,
-             "Polling interval for extended diagnostics (in seconds)", 0},
+             "Polling interval for extended diagnostics", 0},
+            {"debug", 6, NULL, 0, "Debug output", 0},
             {0}};
     struct argp argp = {options, parser, args_doc, doc, NULL, NULL, NULL};
-    struct arguments arguments = {.upgrade_file_path = "",
+    struct arguments arguments = {.debug = false,
+                                  .upgrade_file_path = "",
                                   .diag_interval = 60,
                                   .ext_diag_interval = 1800,
                                   .cmd = cmd_unknown};
@@ -331,6 +338,8 @@ cmd_daemon(int argc, char **argv)
         return -1;
     }
 
+    is_debug = arguments.debug;
+
     int fd;
     const char *cmd;
     switch (arguments.cmd) {
@@ -339,7 +348,7 @@ cmd_daemon(int argc, char **argv)
         case cmd_disable_diag:
             cmd = string_from_cmd(arguments.cmd);
             if (!cmd) {
-                return -1;
+                return 1;
             }
             retval = daemon_send_cmd(cmd);
             if (retval < 0) {
@@ -353,7 +362,7 @@ cmd_daemon(int argc, char **argv)
         default:
             retval = daemon_init(&fd);
             if (retval < 0) {
-                return -1;
+                return 1;
             }
             psyslog(LOG_INFO, "%s started", argv[0]);
             daemon_loop(fd, arguments.diag_interval,
@@ -363,5 +372,6 @@ cmd_daemon(int argc, char **argv)
             daemon_exit(fd);
             break;
     }
+
     return 0;
 }

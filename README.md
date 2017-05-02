@@ -23,7 +23,7 @@ $ make install
 ## Using
 Run the following to see the help section of the application.
 ```
-$ atrusctl --help
+$ atrusd --help
 ```
 
 Also, make sure you have read and write access to the USB device.
