@@ -1,3 +1,0 @@
----
-Checks: 'misc-*,modernize-*,performance-*,readability-*'
-HeaderFilterRegex: .*

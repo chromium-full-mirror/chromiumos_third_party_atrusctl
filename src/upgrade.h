@@ -4,10 +4,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#ifndef UPGRADE_H
-#define UPGRADE_H
+#ifndef UPGRADE_H_
+#define UPGRADE_H_
 
-int
-cmd_upgrade(int argc, char **argv);
+namespace atrusctl {
+
+int cmd_upgrade(int argc, char** argv);
+
+}  // namespace atrusctl
 
 #endif
