@@ -4,10 +4,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#ifndef DIAGNOSE_H
-#define DIAGNOSE_H
+#ifndef DIAGNOSE_H_
+#define DIAGNOSE_H_
 
-int
-cmd_diagnose(int argc, char **argv);
+namespace atrusctl {
+
+int cmd_diagnose(int argc, char** argv);
+
+}  // namespace atrusctl
 
 #endif

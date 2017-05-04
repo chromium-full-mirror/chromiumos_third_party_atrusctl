@@ -4,10 +4,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#ifndef DEVICE_H
-#define DEVICE_H
+#ifndef DEVICE_H_
+#define DEVICE_H_
+
+namespace atrusctl {
 
 #define USB_VID 0x18D1
 #define USB_PID 0x8001
+
+}  // namespace atrusctl
 
 #endif
