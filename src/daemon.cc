@@ -43,7 +43,7 @@ struct cmd_sym {
 
 struct arguments {
     bool stop;
-    char *upgrade_file_path;
+    const char *upgrade_file_path;
     unsigned int diag_interval;
     unsigned int ext_diag_interval;
     enum cmd_key cmd;
@@ -173,22 +173,22 @@ daemon_loop(int fd,
 
     psyslog(LOG_INFO, "Polling diagnostics every %u s", diag_interval);
 
-    char *upgrade_argv[] = {"upgrade", upgrade_file_path};
+    const char *upgrade_argv[] = {"upgrade", upgrade_file_path};
     int upgrade_argc = sizeof(upgrade_argv) / sizeof(upgrade_argv[0]);
-    cmd_upgrade(upgrade_argc, upgrade_argv);
+    cmd_upgrade(upgrade_argc, const_cast<char **>(upgrade_argv));
 
-    char *diag_argv[] = {"diagnose"};
+    const char *diag_argv[] = {"diagnose"};
     int diag_argc = sizeof(diag_argv) / sizeof(diag_argv[0]);
-    char *diag_ext_argv[] = {"diagnose", "--extended"};
+    const char *diag_ext_argv[] = {"diagnose", "--extended"};
     int diag_ext_argc = sizeof(diag_ext_argv) / sizeof(diag_ext_argv[0]);
     while (do_run) {
         if (do_diag) {
             time_t now = time(NULL);
             if ((now - last_extended_diag) >= ext_interval) {
-                cmd_diagnose(diag_ext_argc, diag_ext_argv);
+                cmd_diagnose(diag_ext_argc, const_cast<char **>(diag_ext_argv));
                 last_extended_diag = now;
             } else {
-                cmd_diagnose(diag_argc, diag_argv);
+                cmd_diagnose(diag_argc, const_cast<char **>(diag_argv));
             }
         }
 
@@ -358,7 +358,7 @@ cmd_daemon(int argc, char **argv)
             psyslog(LOG_INFO, "%s started", argv[0]);
             daemon_loop(fd, arguments.diag_interval,
                         arguments.ext_diag_interval,
-                        arguments.upgrade_file_path);
+                        const_cast<char *>(arguments.upgrade_file_path));
             psyslog(LOG_INFO, "%s stopped", argv[0]);
             daemon_exit(fd);
             break;

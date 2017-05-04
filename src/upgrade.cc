@@ -142,15 +142,19 @@ parse_dfu_suffix(FILE *file, struct dfu_suffix *suffix)
     if (fseek(file, -16, SEEK_END) < 0) {
         return -1;
     }
-    fread(&suffix->bcdDevice, sizeof(suffix->bcdDevice), 1, file);
-    fread(&suffix->idProduct, sizeof(suffix->idProduct), 1, file);
-    fread(&suffix->idVendor, sizeof(suffix->idVendor), 1, file);
-    fread(&suffix->bcdDFU, sizeof(suffix->bcdDFU), 1, file);
-    fread(&suffix->ucDfuSignature[2], sizeof(*suffix->ucDfuSignature), 1, file);
-    fread(&suffix->ucDfuSignature[1], sizeof(*suffix->ucDfuSignature), 1, file);
-    fread(&suffix->ucDfuSignature[0], sizeof(*suffix->ucDfuSignature), 1, file);
-    fread(&suffix->bLength, sizeof(suffix->bLength), 1, file);
-    fread(&suffix->dwCRC, sizeof(suffix->dwCRC), 1, file);
+    size_t s;
+    s = fread(&suffix->bcdDevice, sizeof(suffix->bcdDevice), 1, file);
+    s = fread(&suffix->idProduct, sizeof(suffix->idProduct), 1, file);
+    s = fread(&suffix->idVendor, sizeof(suffix->idVendor), 1, file);
+    s = fread(&suffix->bcdDFU, sizeof(suffix->bcdDFU), 1, file);
+    s = fread(&suffix->ucDfuSignature[2], sizeof(*suffix->ucDfuSignature), 1,
+              file);
+    s = fread(&suffix->ucDfuSignature[1], sizeof(*suffix->ucDfuSignature), 1,
+              file);
+    s = fread(&suffix->ucDfuSignature[0], sizeof(*suffix->ucDfuSignature), 1,
+              file);
+    s = fread(&suffix->bLength, sizeof(suffix->bLength), 1, file);
+    s = fread(&suffix->dwCRC, sizeof(suffix->dwCRC), 1, file);
 
     long to_read = ftell(file) - 4;
     rewind(file);

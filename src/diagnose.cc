@@ -212,7 +212,6 @@ get_hidraw_devices(struct hidraw_dev **head)
     udev_enumerate_scan_devices(enumerate);
 
     struct hidraw_dev *current = NULL;
-    struct hidraw_dev *prev = NULL;
     struct udev_list_entry *devices = udev_enumerate_get_list_entry(enumerate);
     struct udev_list_entry *dev_list_entry;
     udev_list_entry_foreach(dev_list_entry, devices)
