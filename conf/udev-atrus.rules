@@ -6,7 +6,7 @@ LABEL="atrus_action"
 
 ACTION=="add", RUN+="/bin/mkdir -p /run/atrusd"
 ACTION=="add", RUN+="/bin/chown atrus:atrus /run/atrusd"
-ACTION=="add", RUN+="/sbin/minijail0 -u atrus -g atrus -e -l -v -p -n -c 4096 -- /usr/sbin/atrusd /lib/firmware/limes_audio/atrus-fw-bundle.bin"
+ACTION=="add", RUN+="/sbin/minijail0 -u atrus -g atrus -e -l -v -p -n -c 4096 -- /usr/sbin/atrusd /lib/firmware/google/atrus-fw-bundle-latest.bin"
 
 ACTION=="remove", RUN+="/sbin/minijail0 -u atrus -g atrus -e -l -v -p -n -- /usr/sbin/atrusd --stop"
 
