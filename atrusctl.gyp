@@ -16,6 +16,9 @@
       'sources': [
         'src/atrusd.cc',
         'src/diagnose.cc',
+        'src/hid_connection.cc',
+        'src/hid_message.cc',
+        'src/hidraw_device.cc',
         'src/upgrade.cc',
         'src/usb_device.cc',
         'src/usb_dfu_device.cc',

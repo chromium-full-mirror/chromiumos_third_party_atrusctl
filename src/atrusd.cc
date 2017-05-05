@@ -167,18 +167,26 @@ static void daemon_loop(int fd,
   LOG(INFO) << "Upgrade "
             << (ret ? (skipped ? "skipped" : "succeeded") : "failed");
 
-  const char* diag_argv[] = {"diagnose"};
-  int diag_argc = sizeof(diag_argv) / sizeof(diag_argv[0]);
-  const char* diag_ext_argv[] = {"diagnose", "--extended"};
-  int diag_ext_argc = sizeof(diag_ext_argv) / sizeof(diag_ext_argv[0]);
+  LOG(INFO) << "Polling diagnostics every " << diag_interval << " s";
+
+  Diagnostics diagnostics;
+  if (!diagnostics.Initialize()) {
+    do_run = false;
+  }
+
   while (do_run) {
     if (do_diag) {
       time_t now = time(NULL);
+
+      diagnostics.Run();
+
       if ((now - last_extended_diag) >= ext_interval) {
-        cmd_diagnose(diag_ext_argc, const_cast<char**>(diag_ext_argv));
+        diagnostics.RunExtended();
         last_extended_diag = now;
       } else {
-        cmd_diagnose(diag_argc, const_cast<char**>(diag_argv));
+        if (diagnostics.SessionStateHasChanged()) {
+          diagnostics.RunExtended();
+        }
       }
     }
 
