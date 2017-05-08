@@ -37,83 +37,88 @@ struct report {
     char *message;
 };
 
-struct diag_command {
-    uint16_t id;
-    const char *str;
-};
-
 static int
 check_uptime(int fd,
-             const struct diag_command *cmd,
+             const uint16_t cmd,
              struct report *report,
              bool *changed);
 static int
 check_num_slaves(int fd,
-                 const struct diag_command *cmd,
+                 const uint16_t cmd,
                  struct report *report,
                  bool *changed);
 
 struct diag_trigger {
-    struct diag_command cmd;
-    int (*check)(int, const struct diag_command *, struct report *, bool *);
+    uint16_t cmd;
+    int (*check)(int, const uint16_t, struct report *, bool *);
 };
 
 static const struct diag_trigger triggers[] = {
-        {{0x1604, "STATE_UPTIME"}, check_uptime},
-        {{0x1351, "DAISY_NUM_SLAVES"}, check_num_slaves},
+        {0x1604, check_uptime},
+        {0x1351, check_num_slaves},
         {0}};
 
-static const struct diag_command commands[] = {{0x1351, "DAISY_NUM_SLAVES"},
-                                         {0x1500, "DAISY_DFU_STATUS"},
-                                         {0x1600, "STATE_MUTED"},
-                                         {0x1601, "STATE_HOOK_OFF"},
-                                         {0x1602, "STATE_VOLUME"},
-                                         {0x1603, "STATE_LED"},
-                                         {0x1604, "STATE_UPTIME"},
-                                         {0x1605, "STATE_SHARC_ALIVE"},
-                                         {0x1701, "USB_VOLTAGE"},
-                                         {0x1800, "TV_MIC_SELECTION"},
-                                         {0x1801, "TV_ERLE_MIN"},
-                                         {0x1802, "TV_ERLE_MAX"},
-                                         {0x1803, "TV_ERLE_MEAN"},
-                                         {0x1804, "TV_FEEDBACK_EST_MIN"},
-                                         {0x1805, "TV_FEEDBACK_EST_MAX"},
-                                         {0x1806, "TV_FEEDBACK_EST_MEAN"},
-                                         {0x1807, "TV_ROOM_T60_EST"},
-                                         {0x1808, "TV_NR_MIN"},
-                                         {0x1809, "TV_NR_MAX"},
-                                         {0x180A, "TV_NR_MEAN"},
-                                         {0x180B, "TV_MIC_AVE_MIN"},
-                                         {0x180C, "TV_MIC_AVE_MAX"},
-                                         {0x180D, "TV_MIC_AVE_MEAN"},
-                                         {0x180E, "TV_LS_NOISE_MIN"},
-                                         {0x180F, "TV_LS_NOISE_MAX"},
-                                         {0x1810, "TV_LS_NOISE_MEAN"},
-                                         {0x1811, "TV_MIC_NOISE_MIN"},
-                                         {0x1812, "TV_MIC_NOISE_MAX"},
-                                         {0x1813, "TV_MIC_NOISE_MEAN"},
-                                         {0x5000, "STR_READ_TOUCH_REGISTER"},
-                                         {0x5001, "STR_SPI_QUEUE_STATUS"},
-                                         {0x5004, "STR_NR_BUTTON_PRESSES"},
-                                         {0}};
+static const uint16_t commands[] = {
+        0x1500, // DAISY_DFU_STATUS
+        0x1600, // STATE_MUTED
+        0x1601, // STATE_HOOK_OFF
+        0x1602, // STATE_VOLUME
+        0x1603, // STATE_LED
+        0x1604, // STATE_UPTIME
+        0x1605, // STATE_SHARC_ALIVE
+        0x1351, // DAISY_NUM_SLAVES
+        0x1701, // USB_VOLTAGE
+        0x1800, // TV_MIC_SELECTION
+        0x1801, // TV_ERLE_MIN
+        0x1804, // TV_ERLE_MAX
+        0x1805, // TV_ERLE_MEAN
+        0x1806, // TV_ERLE_VARIANCE
+        0x1807, // TV_FEEDBACK_EST_MIN
+        0x1808, // TV_FEEDBACK_EST_MAX
+        0x1809, // TV_FEEDBACK_EST_MEAN
+        0x180A, // TV_FEEDBACK_EST_VARIANCE
+        0x180B, // TV_NR_MIN
+        0x180C, // TV_NR_MAX
+        0x180D, // TV_NR_MEAN
+        0x180E, // TV_NR_VARIANCE
+        0x180F, // TV_MIC_AVE_MIN
+        0x1810, // TV_MIC_AVE_MAX
+        0x1811, // TV_MIC_AVE_MEAN
+        0x1812, // TV_MIC_AVE_VARIANCE
+        0x1813, // TV_LS_NOISE_MIN
+        0x1814, // TV_LS_NOISE_MAX
+        0x1815, // TV_LS_NOISE_MEAN
+        0x1816, // TV_LS_NOISE_VARIANCE
+        0x1817, // TV_MIC_NOISE_MIN
+        0x1818, // TV_MIC_NOISE_MAX
+        0x1819, // TV_MIC_NOISE_MEAN
+        0x181A, // TV_MIC_NOISE_VARIANCE
+        0x181B, // TV_GAMMA_MIN
+        0x181C, // TV_GAMMA_MAX
+        0x181D, // TV_GAMMA_MEAN
+        0x181E, // TV_GAMMA_VARIANCE
+        0x5000, // TOUCH_REGISTER_STATUS
+        0x5001, // SPI_QUEUE_STATUS
+        0x5004, // NR_BUTTON_PRESSES
+        0};
 
-static const struct diag_command commands_extended[] = {
-        {0x1300, "VERSION_MASTER"},
-        {0x1310, "VERSION_SLAVE_UP0"},
-        {0x1311, "VERSION_SLAVE_UP1"},
-        {0x1312, "VERSION_SLAVE_UP2"},
-        {0x1313, "VERSION_SLAVE_UP3"},
-        {0x1314, "VERSION_SLAVE_DOWN0"},
-        {0x1315, "VERSION_SLAVE_DOWN1"},
-        {0x1316, "VERSION_SLAVE_DOWN2"},
-        {0x1317, "VERSION_SLAVE_DOWN3"},
-        {0x1350, "DAISY_MIN_VERSION"},
-        {0x1700, "HW_ID"},
-        {0x1702, "MIC_CALIBRATION"},
-        {0x1703, "BOOT_PARTITION"},
-        {0x5002, "STR_TOUCH_ANALOG_CALIBRATION_STATUS"},
-        {0x5003, "STR_RF_NOISE_DETECTION"},
-        {0}};
+static const uint16_t commands_extended[] = {
+        0x1300, // VERSION_MASTER
+        0x1310, // VERSION_SLAVE1_UP
+        0x1311, // VERSION_SLAVE2_UP
+        0x1312, // VERSION_SLAVE3_UP
+        0x1313, // VERSION_SLAVE4_UP
+        0x1314, // VERSION_SLAVE1_DOWN
+        0x1315, // VERSION_SLAVE2_DOWN
+        0x1316, // VERSION_SLAVE3_DOWN
+        0x1317, // VERSION_SLAVE4_DOWN
+        0x1350, // DAISY_MIN_VERSION
+        0x1700, // HW_ID
+        0x1702, // MIC_CALIBRATION
+        0x1703, // BOOT_PARTITION
+        0x5002, // TOUCH_ANALOG_CALIBRATION_STATUS
+        0x5003, // RF_NOISE_DETECTION
+        0};
 
 static const size_t report_header_length = 3;
 static const size_t report_length = 64;
@@ -270,11 +275,11 @@ get_hidraw_devices(struct hidraw_dev **head)
 
 static int
 get_int_value_cmd(int fd,
-                  const struct diag_command *cmd,
+                  const uint16_t cmd_id,
                   struct report *report,
                   int *out)
 {
-    report->diag_id = cmd->id;
+    report->diag_id = cmd_id;
     int retval = get_report(fd, report);
     if (retval < 0) {
         return -1;
@@ -294,26 +299,26 @@ get_int_value_cmd(int fd,
 }
 
 static void
-get_and_print_cmd(int fd, const struct diag_command *cmd, struct report *report)
+get_and_print_cmd(int fd, const uint16_t cmd_id, struct report *report)
 {
     const char *message = "Error reading report";
-    report->diag_id = cmd->id;
+    report->diag_id = cmd_id;
     int retval = get_report(fd, report);
     if (retval == 0) {
         message = report->message;
     }
-    psyslog(LOG_INFO, "0x%04X %s: %s", cmd->id, cmd->str, message);
+    psyslog(LOG_INFO, "0x%04X: %s", cmd_id, message);
 }
 
 static int
 check_uptime(int fd,
-             const struct diag_command *cmd,
+             const uint16_t cmd_id,
              struct report *report,
              bool *changed)
 {
     static int last_uptime = -1;
     int out, retval;
-    retval = get_int_value_cmd(fd, cmd, report, &out);
+    retval = get_int_value_cmd(fd, cmd_id, report, &out);
     if (retval < 0) {
         return -1;
     }
@@ -324,13 +329,13 @@ check_uptime(int fd,
 
 static int
 check_num_slaves(int fd,
-                 const struct diag_command *cmd,
+                 const uint16_t cmd_id,
                  struct report *report,
                  bool *changed)
 {
     static int last_num_slaves = -1;
     int out, retval;
-    retval = get_int_value_cmd(fd, cmd, report, &out);
+    retval = get_int_value_cmd(fd, cmd_id, report, &out);
     if (retval < 0) {
         return -1;
     }
@@ -401,32 +406,26 @@ cmd_diagnose(int argc, char **argv)
         report.report_id = arguments.report_id;
         char buf[report_length - report_header_length];
         report.message = buf;
-        const struct diag_command *cmd;
+        const uint16_t *cmd;
         if (arguments.diag_id != 0) {
-            struct diag_command custom_cmd = {.id = arguments.diag_id,
-                                              .str = "UNKNOWN"};
-            for (cmd = commands; (*cmd).id; ++cmd) {
-                if (cmd->id == custom_cmd.id) {
-                    custom_cmd.str = cmd->str;
-                }
-            }
-            get_and_print_cmd(fd, &custom_cmd, &report);
+            // custom command
+            get_and_print_cmd(fd, arguments.diag_id, &report);
         } else {
             bool changed;
             const struct diag_trigger *trig;
             for (trig = triggers; trig->check; ++trig) {
-                retval = trig->check(fd, &trig->cmd, &report, &changed);
+                retval = trig->check(fd, trig->cmd, &report, &changed);
                 if (retval == 0 && changed) {
                     arguments.extended = true;
                 }
             }
 
-            for (cmd = commands; cmd->id; ++cmd) {
-                get_and_print_cmd(fd, cmd, &report);
+            for (cmd = commands; *cmd != 0; ++cmd) {
+                get_and_print_cmd(fd, *cmd, &report);
             }
             if (arguments.extended) {
-                for (cmd = commands_extended; cmd->id; ++cmd) {
-                    get_and_print_cmd(fd, cmd, &report);
+                for (cmd = commands_extended; *cmd != 0; ++cmd) {
+                    get_and_print_cmd(fd, *cmd, &report);
                 }
             }
         }
