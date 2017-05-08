@@ -18,6 +18,7 @@
 #include <string.h>
 #include <sys/select.h>
 #include <syslog.h>
+#include <time.h>
 #include <unistd.h>
 
 struct arguments {
@@ -370,6 +371,19 @@ parser(int key, char *arg, struct argp_state *state)
     return 0;
 }
 
+// TODO(lndmrk): Remove this when the problem is fixed in firmware.
+static void
+diag_sleep(long ns)
+{
+    struct timespec req = {.tv_sec = 0, .tv_nsec = ns};
+    struct timespec rem;
+
+    // Ensure we're waiting at least ns even if nanosleep() gets interrupted
+    while ((nanosleep(&req, &rem) < 0) && (errno == EINTR)) {
+        req = rem;
+    }
+}
+
 int
 cmd_diagnose(int argc, char **argv)
 {
@@ -420,12 +434,17 @@ cmd_diagnose(int argc, char **argv)
                 }
             }
 
+            long kDiagnosticDelayNs = 1000000;
             for (cmd = commands; *cmd != 0; ++cmd) {
                 get_and_print_cmd(fd, *cmd, &report);
+                // Temporary hack to mitigate problem with firmware <= 0.6.7
+                diag_sleep(kDiagnosticDelayNs);
             }
             if (arguments.extended) {
                 for (cmd = commands_extended; *cmd != 0; ++cmd) {
                     get_and_print_cmd(fd, *cmd, &report);
+                    // Temporary hack to mitigate problem with firmware <= 0.6.7
+                    diag_sleep(kDiagnosticDelayNs);
                 }
             }
         }
