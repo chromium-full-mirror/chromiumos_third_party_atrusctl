@@ -1,13 +1,1 @@
-SUBSYSTEM=="usb", ENV{ID_VENDOR_ID}=="18d1", ENV{ID_MODEL_ID}=="8001", GOTO="atrus_action"
-
-GOTO="atrus_end"
-
-LABEL="atrus_action"
-
-ACTION=="add", RUN+="/bin/mkdir -p /run/atrusd"
-ACTION=="add", RUN+="/bin/chown atrus:atrus /run/atrusd"
-ACTION=="add", RUN+="/sbin/minijail0 -u atrus -g atrus -e -l -v -p -n -c 4096 -- /usr/sbin/atrusd /lib/firmware/google/atrus-fw-bundle-latest.bin"
-
-ACTION=="remove", RUN+="/sbin/minijail0 -u atrus -g atrus -e -l -v -p -n -- /usr/sbin/atrusd --stop"
-
-LABEL="atrus_end"
+KERNEL=="hidraw*" SUBSYSTEM=="hidraw", ATTRS{idVendor}=="18d1", ATTRS{idProduct}=="8001", TAG+="atrus"

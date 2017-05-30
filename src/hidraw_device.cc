@@ -21,35 +21,6 @@ namespace atrusctl {
 
 namespace {
 
-// Because this is used to parse a string containing a number with trailing
-// characters, check |new_value| rather then the return value of
-// base::HexStringToUInt to determine if a value was read. We assume that the
-// string read does not contain the number 0.
-bool ParseUintFromSysattr(const std::string& str, uint32_t* val) {
-  uint32_t new_value = 0;
-  base::HexStringToUInt(str, &new_value);
-  if (new_value == 0) {
-    LOG(ERROR) << "Failed to parse int from string: " << str;
-    return false;
-  }
-
-  *val = new_value;
-  return true;
-}
-
-bool VerifyDeviceVidPid(udev_device* device) {
-  uint32_t id_vendor = 0, id_product = 0;
-  ParseUintFromSysattr(udev_device_get_sysattr_value(device, "idVendor"),
-                       &id_vendor);
-  ParseUintFromSysattr(udev_device_get_sysattr_value(device, "idProduct"),
-                       &id_product);
-  if ((id_vendor == 0) || (id_product == 0) || (id_vendor != kAtrusUsbVid) ||
-      (id_product != kAtrusUsbPid)) {
-    return false;
-  }
-  return true;
-}
-
 const int kMaxQueryReadRetries = 10;
 const int kHidMaxOutputReportSizeBytes = 3;
 const int kHidMaxInputReportSizeBytes = 61;
@@ -58,10 +29,6 @@ const uint8_t kHidReportId = 0x07;
 }  // namespace
 
 HIDRawDevice::HIDRawDevice() {}
-
-bool HIDRawDevice::Initialize() {
-  return GetDevicePath();
-}
 
 bool HIDRawDevice::OpenConnection(const ConnectCallback& callback) {
   HIDConnection connection;
@@ -131,52 +98,6 @@ HIDRawDevice::QueryResult HIDRawDevice::ExecuteQuery(
 
   // Reached |kMaxQueryReadRetries|, the device only responded with unknown data
   return kQueryUnknownResponse;
-}
-
-bool HIDRawDevice::GetDevicePath() {
-  ScopedUdev udev(udev_new());
-  if (!udev) {
-    LOG(ERROR) << "udev_new() returned nullptr";
-    return false;
-  }
-  ScopedUdevEnumerate enumerate(udev_enumerate_new(udev.get()));
-  if (!enumerate) {
-    LOG(ERROR) << "udev_enumerate_new() returned nullptr";
-    return false;
-  }
-
-  udev_enumerate_add_match_subsystem(enumerate.get(), "hidraw");
-  udev_enumerate_scan_devices(enumerate.get());
-
-  udev_list_entry* devices = udev_enumerate_get_list_entry(enumerate.get());
-  if (!devices) {
-    LOG(INFO) << "udev_enumerate_get_list_entry() returned empty list";
-    return false;
-  }
-  udev_list_entry* dev_list_entry;
-  udev_list_entry_foreach(dev_list_entry, devices) {
-    const char* path = udev_list_entry_get_name(dev_list_entry);
-    ScopedUdevDevice device(udev_device_new_from_syspath(udev.get(), path));
-    if (!device) {
-      PLOG(ERROR) << "udev_device_new_from_syspath()";
-      continue;
-    }
-
-    // Actual path to hidraw device
-    const char* dev_node_path = udev_device_get_devnode(device.get());
-
-    // |parent| does not need a ScopedUdevHandle, since it is owned and unrefd
-    // internally by |device|.
-    udev_device* parent;
-    parent = udev_device_get_parent_with_subsystem_devtype(
-        device.get(), "usb", "usb_device");
-    if ((parent != nullptr) && VerifyDeviceVidPid(parent)) {
-      path_ = dev_node_path;
-      return true;
-    }
-  }
-
-  return false;
 }
 
 }  // namespace atrusctl
