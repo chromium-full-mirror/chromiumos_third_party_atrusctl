@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "diagnose.h"
+#include "diagnostics.h"
 
 #include <string>
 
@@ -107,20 +107,38 @@ Diagnostics::Diagnostics()
       commands_extended_(kCommandsExtended,
                          kCommandsExtended + arraysize(kCommandsExtended)) {}
 
-bool Diagnostics::Initialize() {
-  return device_.Initialize();
+void Diagnostics::Start(const base::TimeDelta& diag_interval,
+                        const base::TimeDelta& ext_diag_interval,
+                        const std::string& device_path) {
+  if (diag_timer_.IsRunning()) {
+    LOG(INFO) << "Diagnostics started while already running";
+    diag_timer_.Stop();
+  }
+
+  ResetSessionState();
+  ext_diag_interval_ = ext_diag_interval;
+  last_extended_diag_time_ = base::TimeTicks::Now();
+
+  device_.set_path(device_path);
+  diag_timer_.Start(FROM_HERE,
+                    diag_interval,
+                    base::Bind(&Diagnostics::Run, base::Unretained(this)));
+}
+
+void Diagnostics::Stop() {
+  if (diag_timer_.IsRunning()) {
+    diag_timer_.Stop();
+  }
 }
 
 void Diagnostics::Run() {
+  base::TimeTicks now = base::TimeTicks::Now();
   QueryDeviceWithCommands(commands_);
-}
-
-void Diagnostics::RunExtended() {
-  QueryDeviceWithCommands(commands_extended_);
-}
-
-bool Diagnostics::SessionStateHasChanged() const {
-  return uptime_.changed || number_of_connected_slaves_.changed;
+  if (SessionStateHasChanged() ||
+      (now - last_extended_diag_time_ > ext_diag_interval_)) {
+    last_extended_diag_time_ = now;
+    QueryDeviceWithCommands(commands_extended_);
+  }
 }
 
 void Diagnostics::QueryDeviceWithCommands(
@@ -181,6 +199,17 @@ void Diagnostics::UpdateNumberOfConnectedSlaves(int new_value) {
   number_of_connected_slaves_.changed =
       (new_value != number_of_connected_slaves_.value);
   number_of_connected_slaves_.value = new_value;
+}
+
+void Diagnostics::ResetSessionState() {
+  uptime_.value = 0;
+  uptime_.changed = false;
+  number_of_connected_slaves_.value = 0;
+  number_of_connected_slaves_.changed = false;
+}
+
+bool Diagnostics::SessionStateHasChanged() const {
+  return (uptime_.changed || number_of_connected_slaves_.changed);
 }
 
 }  // namespace atrusctl

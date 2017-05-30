@@ -34,6 +34,8 @@ using ScopedUdevEnumerate =
     ScopedUdevHandle<struct udev_enumerate, udev_enumerate_unref>;
 using ScopedUdevDevice =
     ScopedUdevHandle<struct udev_device, udev_device_unref>;
+using ScopedUdevMonitor =
+    ScopedUdevHandle<struct udev_monitor, udev_monitor_unref>;
 
 }  // namespace atrusctl
 

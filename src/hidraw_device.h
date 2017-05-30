@@ -32,10 +32,11 @@ class HIDRawDevice {
                           const HIDMessage& response)>;
   using ConnectCallback = base::Callback<void(const HIDConnection& connection)>;
 
-  bool Initialize();
-  bool GetDevicePath();
+  void SetPath(const std::string& path);
   bool OpenConnection(const ConnectCallback& callback);
   void Query(const uint16_t command, const QueryCompleteCallback& callback);
+
+  void set_path(const std::string& path) { path_ = path; }
 
  private:
   void ExecuteQueryWrapper(const HIDMessage& request,
