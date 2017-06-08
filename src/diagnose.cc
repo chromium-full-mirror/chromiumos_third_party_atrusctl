@@ -15,12 +15,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/select.h>
-#include <syslog.h>
 #include <time.h>
 #include <unistd.h>
 
+#include <base/logging.h>
+#include <base/strings/stringprintf.h>
+
 #include "device.h"
-#include "util.h"
 
 namespace atrusctl {
 
@@ -276,7 +277,7 @@ static int get_int_value_cmd(int fd,
   long result = strtol(report->message, &endptr, 10);
   if (endptr == report->message || *endptr != '\0' ||
       ((result == LONG_MIN || result == LONG_MAX) && errno == ERANGE)) {
-    psyslog(LOG_INFO, "Error parsing report: %s", report->message);
+    LOG(INFO) << "Error parsing report: " << report->message;
     return -1;
   }
   *out = (int)result;
@@ -292,7 +293,7 @@ static void get_and_print_cmd(int fd,
   if (retval == 0) {
     message = report->message;
   }
-  psyslog(LOG_INFO, "0x%04X %s", cmd_id, message);
+  LOG(INFO) << base::StringPrintf("0x%04X %s", cmd_id, message);
 }
 
 static int check_uptime(int fd,

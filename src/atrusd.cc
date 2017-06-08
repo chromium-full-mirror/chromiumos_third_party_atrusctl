@@ -11,13 +11,15 @@
 #include <sys/poll.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <syslog.h>
 #include <time.h>
 #include <unistd.h>
 
+#include <base/logging.h>
+#include <base/strings/stringprintf.h>
+#include <brillo/syslog_logging.h>
+
 #include "diagnose.h"
 #include "upgrade.h"
-#include "util.h"
 
 #define CMD_LENGTH 16
 
@@ -35,7 +37,6 @@ struct cmd_sym {
 };
 
 struct arguments {
-  bool debug;
   bool stop;
   const char* upgrade_file_path;
   unsigned int diag_interval;
@@ -54,9 +55,6 @@ namespace atrusctl {
 static bool do_run;
 static bool do_diag;
 static const char socket_path[] = "/run/atrusd/atrusd.socket";
-
-bool is_daemon;
-bool is_debug;
 
 static int socket_init(int* fd, struct sockaddr_un* address) {
   *fd = socket(AF_UNIX, SOCK_RAW | SOCK_CLOEXEC, 0);
@@ -120,7 +118,7 @@ static int wait_for_command(int fd, unsigned int timeout) {
   struct pollfd fds = {.fd = fd, .events = POLLIN, .revents = POLLIN};
   int retval = poll(&fds, 1, timeout * 1000);
   if (retval < 0) {
-    psyslog(LOG_ERR, "poll: %m");
+    LOG(ERROR) << base::StringPrintf("poll: %m");
     if (errno != EINTR) {
       return -1;
     }
@@ -129,7 +127,7 @@ static int wait_for_command(int fd, unsigned int timeout) {
     memset(buffer, 0, sizeof(buffer));
     retval = read(fd, buffer, CMD_LENGTH);
     if (retval < 0) {
-      psyslog(LOG_ERR, "read: %m");
+      LOG(ERROR) << base::StringPrintf("read: %m");
     } else {
       cmd = cmd_from_string(buffer);
       switch (cmd) {
@@ -138,16 +136,15 @@ static int wait_for_command(int fd, unsigned int timeout) {
           break;
         case cmd_disable_diag:
           do_diag = false;
-          psyslog(LOG_INFO, "Diagnostics disabled");
+          LOG(INFO) << "Diagnostics disabled";
           break;
         case cmd_enable_diag:
           do_diag = true;
-          psyslog(LOG_INFO, "Diagnostics enabled");
+          LOG(INFO) << "Diagnostics enabled";
           break;
         case cmd_numkeys:
         case cmd_unknown:
-          psyslog(
-              LOG_WARNING, "Received unknown command from socket: %s", buffer);
+          LOG(WARNING) << "Received unknown command from socket: " << buffer;
           break;
       }
     }
@@ -162,7 +159,8 @@ static void daemon_loop(int fd,
                         char* upgrade_file_path) {
   time_t last_extended_diag = time(NULL);
 
-  psyslog(LOG_INFO, "Polling diagnostics every %u s", diag_interval);
+  LOG(INFO) << base::StringPrintf("Polling diagnostics every %u s",
+                                  diag_interval);
 
   const char* upgrade_argv[] = {"upgrade", upgrade_file_path};
   int upgrade_argc = sizeof(upgrade_argv) / sizeof(upgrade_argv[0]);
@@ -220,11 +218,8 @@ static int daemon_init(int* fd) {
     return -1;
   }
 
-  is_daemon = true;
   do_run = true;
   do_diag = true;
-
-  openlog(NULL, 0, LOG_DAEMON);
 
   return 0;
 }
@@ -232,14 +227,12 @@ static int daemon_init(int* fd) {
 static void daemon_exit(int fd) {
   int retval = close(fd);
   if (retval < 0) {
-    psyslog(LOG_ERR, "close: %m");
+    LOG(ERROR) << base::StringPrintf("close: %m");
   }
   retval = unlink(socket_path);
   if (retval < 0) {
-    psyslog(LOG_ERR, "unlink: %m");
+    LOG(ERROR) << base::StringPrintf("unlink: %m");
   }
-
-  closelog();
 }
 
 }  // namespace atrusctl
@@ -267,10 +260,6 @@ static error_t parser(int key, char* arg, struct argp_state* state) {
 
     case 5:
       arguments->ext_diag_interval = (unsigned int)strtol(arg, NULL, 0);
-      break;
-
-    case 6:
-      arguments->debug = true;
       break;
 
     case ARGP_KEY_ARG:
@@ -310,11 +299,9 @@ int main(int argc, char* argv[]) {
        0,
        "Polling interval for extended diagnostics",
        0},
-      {"debug", 6, NULL, 0, "Debug output", 0},
       {0}};
   struct argp argp = {options, parser, args_doc, doc, NULL, NULL, NULL};
-  struct arguments arguments = {.debug = false,
-                                .upgrade_file_path = "",
+  struct arguments arguments = {.upgrade_file_path = "",
                                 .diag_interval = 60,
                                 .ext_diag_interval = 1800,
                                 .cmd = cmd_unknown};
@@ -324,7 +311,7 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
-  atrusctl::is_debug = arguments.debug;
+  brillo::InitLog(brillo::InitFlags::kLogToSyslog);
 
   int fd;
   const char* cmd;
@@ -350,12 +337,12 @@ int main(int argc, char* argv[]) {
       if (retval < 0) {
         return 1;
       }
-      atrusctl::psyslog(LOG_INFO, "%s started", argv[0]);
+      LOG(INFO) << argv[0] << " started";
       atrusctl::daemon_loop(fd,
                             arguments.diag_interval,
                             arguments.ext_diag_interval,
                             const_cast<char*>(arguments.upgrade_file_path));
-      atrusctl::psyslog(LOG_INFO, "%s stopped", argv[0]);
+      LOG(INFO) << argv[0] << " stopped";
       atrusctl::daemon_exit(fd);
       break;
   }
