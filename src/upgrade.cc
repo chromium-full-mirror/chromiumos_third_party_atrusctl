@@ -9,8 +9,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-#include <syslog.h>
 #include <unistd.h>
+
+#include <base/logging.h>
+#include <base/strings/stringprintf.h>
 
 #include "crc32.h"
 #include "device.h"
@@ -256,13 +258,10 @@ static int dfu_get_status(libusb_device_handle* device,
   status->bState = buffer[4];
   status->iString = buffer[5];
 
-  if (is_debug) {
-    psyslog(LOG_DEBUG,
-            "DFU retval=%d, state=0x%X, status=0x%02X",
-            retval,
-            status->bState,
-            status->bStatus);
-  }
+  DLOG(INFO) << base::StringPrintf("DFU retval=%d, state=0x%X, status=0x%02X",
+                                   retval,
+                                   status->bState,
+                                   status->bStatus);
 
   return retval;
 }
@@ -368,11 +367,8 @@ static void set_devices_in_dfu_mode(libusb_context* context,
         (version_compare(device_desc.bcdDevice, dfu_suffix->bcdDevice) >= 0)) {
       int major, minor, patch;
       bcd_to_version(device_desc.bcdDevice, &major, &minor, &patch);
-      psyslog(LOG_INFO,
-              "Skipping device with version %d.%d.%d",
-              major,
-              minor,
-              patch);
+      LOG(INFO) << base::StringPrintf(
+          "Skipping device with version %d.%d.%d", major, minor, patch);
       goto release_handle;
     }
 
@@ -390,7 +386,7 @@ static void set_devices_in_dfu_mode(libusb_context* context,
       goto release_handle;
     }
 
-    psyslog(LOG_INFO, "Setting device in DFU mode");
+    LOG(INFO) << "Setting device in DFU mode";
     dfu_detach(handle, interface, 16);
     libusb_reset_device(handle);
 
@@ -405,7 +401,7 @@ static void on_dfu_error(libusb_device_handle* handle, uint16_t interface) {
 
   int retval = dfu_get_status(handle, interface, &status_req);
   if (retval < 0) {
-    psyslog(LOG_ERR, "Could not get status of the device");
+    LOG(ERROR) << "Could not get status of the device";
     return;
   }
 
@@ -433,7 +429,7 @@ static void on_dfu_error(libusb_device_handle* handle, uint16_t interface) {
   } else {
     strncpy(status_string, status_to_string(status), string_length);
   }
-  psyslog(LOG_ERR, "%s", status_string);
+  LOG(ERROR) << status_string;
 
   dfu_clr_status(handle, interface);
 }
@@ -559,9 +555,8 @@ static int perform_dfu(libusb_context* context,
     if (!dfu_desc.bmAttributes.bitCanDnload ||
         !dfu_desc.bmAttributes.bitManifestationTolerant ||
         dfu_desc.bmAttributes.bitWillDetach) {
-      psyslog(LOG_ERR,
-              "Found device with unsupported USB DFU interface "
-              "descriptor");
+      LOG(ERROR)
+          << "Found device with unsupported USB DFU interface descriptor";
       goto release_handle;
     }
 
@@ -579,11 +574,8 @@ static int perform_dfu(libusb_context* context,
     {
       int major, minor, patch;
       bcd_to_version(device_desc.bcdDevice, &major, &minor, &patch);
-      psyslog(LOG_INFO,
-              "Upgrading device from version %d.%d.%d",
-              major,
-              minor,
-              patch);
+      LOG(INFO) << base::StringPrintf(
+          "Upgrading device from version %d.%d.%d", major, minor, patch);
       const int max_retries = 3;
       int retries = 0;
       do {
@@ -610,22 +602,22 @@ static int perform_dfu(libusb_context* context,
           dfu_get_status(handle, interface, &status_req);
         }
         if (status_req.bState != STATE_dfuIDLE) {
-          psyslog(LOG_ERR, "Device is not in a proper state for upgrading");
+          LOG(ERROR) << "Device is not in a proper state for upgrading";
           goto usb_reset;
         }
 
         retval = download_file(handle, interface, file);
         if (retval < 0) {
-          psyslog(LOG_WARNING, "Upgrade failed on device");
+          LOG(WARNING) << "Upgrade failed on device";
           ++retries;
           if (retries <= max_retries) {
-            psyslog(LOG_WARNING,
-                    "Retrying upgrade on device, attempt %d/%d",
-                    retries,
-                    max_retries);
+            LOG(WARNING) << base::StringPrintf(
+                "Retrying upgrade on device, attempt %d/%d",
+                retries,
+                max_retries);
           }
         } else {
-          psyslog(LOG_INFO, "Upgrade successful on device");
+          LOG(INFO) << "Upgrade successful on device";
           ++(*num_successful);
         }
       } while ((retval < 0) && (retries <= max_retries));
@@ -676,8 +668,8 @@ int cmd_upgrade(int argc, char** argv) {
   {
     int major, minor, patch;
     bcd_to_version(arguments.dfu_suffix.bcdDevice, &major, &minor, &patch);
-    psyslog(
-        LOG_INFO, "Starting upgrade to version %d.%d.%d", major, minor, patch);
+    LOG(INFO) << base::StringPrintf(
+        "Starting upgrade to version %d.%d.%d", major, minor, patch);
 
     struct dfu_suffix suffix = arguments.dfu_suffix;
     set_devices_in_dfu_mode(context, &suffix, !arguments.force);
@@ -697,9 +689,8 @@ int cmd_upgrade(int argc, char** argv) {
         break;
       }
 
-      psyslog(LOG_WARNING,
-              "No devices in DFU mode found, retrying in %u s",
-              backoff);
+      LOG(WARNING) << base::StringPrintf(
+          "No devices in DFU mode found, retrying in %u s", backoff);
       sleep(backoff);
       backoff *= 2;
     } while ((retval <= 0) && (backoff < limit));
@@ -707,7 +698,8 @@ int cmd_upgrade(int argc, char** argv) {
     if (retval > 0) {
       retval = 0;
     }
-    psyslog(LOG_INFO, "Upgrade succeeded on %d device(s)", num_successful);
+    LOG(INFO) << base::StringPrintf("Upgrade succeeded on %d device(s)",
+                                    num_successful);
   }
 
   libusb_exit(context);

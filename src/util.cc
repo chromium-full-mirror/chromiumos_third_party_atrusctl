@@ -8,7 +8,6 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <syslog.h>
 #include <time.h>
 
 namespace atrusctl {
@@ -17,19 +16,6 @@ void bcd_to_version(uint16_t bcd, int* major, int* minor, int* patch) {
   *major = (bcd >> 8) & 0xFF;
   *minor = (bcd >> 4) & 0xF;
   *patch = bcd & 0xF;
-}
-
-void psyslog(int priority, const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  if (is_daemon) {
-    vsyslog(priority, format, args);
-  } else {
-    FILE* stream = (priority <= LOG_WARNING) ? stderr : stdout;
-    vfprintf(stream, format, args);
-    fputc('\n', stream);
-  }
-  va_end(args);
 }
 
 void timeout(long ms) {
