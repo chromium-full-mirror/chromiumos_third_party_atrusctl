@@ -12,6 +12,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <base/files/file_path.h>
 #include <base/logging.h>
 #include <base/strings/stringprintf.h>
 #include <brillo/syslog_logging.h>
@@ -160,9 +161,11 @@ static void daemon_loop(int fd,
   LOG(INFO) << base::StringPrintf("Polling diagnostics every %u s",
                                   diag_interval);
 
-  const char* upgrade_argv[] = {"upgrade", upgrade_file_path};
-  int upgrade_argc = sizeof(upgrade_argv) / sizeof(upgrade_argv[0]);
-  cmd_upgrade(upgrade_argc, const_cast<char**>(upgrade_argv));
+  bool skipped;
+  base::FilePath upgrade_file(upgrade_file_path);
+  bool ret = PerformUpgrade(upgrade_file, &skipped);
+  LOG(INFO) << "Upgrade "
+            << (ret ? (skipped ? "skipped" : "succeeded") : "failed");
 
   const char* diag_argv[] = {"diagnose"};
   int diag_argc = sizeof(diag_argv) / sizeof(diag_argv[0]);

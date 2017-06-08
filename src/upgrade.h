@@ -5,10 +5,12 @@
 #ifndef UPGRADE_H_
 #define UPGRADE_H_
 
+#include <base/files/file_path.h>
+
 namespace atrusctl {
 
-int cmd_upgrade(int argc, char** argv);
+bool PerformUpgrade(const base::FilePath& upgrade_file, bool* skipped);
 
 }  // namespace atrusctl
 
-#endif
+#endif  // UPGRADE_H_

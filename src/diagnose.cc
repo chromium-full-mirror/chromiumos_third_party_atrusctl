@@ -19,7 +19,7 @@
 #include <base/logging.h>
 #include <base/strings/stringprintf.h>
 
-#include "device.h"
+#include "atrus_device.h"
 
 namespace atrusctl {
 
@@ -228,7 +228,7 @@ static int get_hidraw_devices(struct hidraw_dev** head) {
       goto unref;
     }
 
-    if ((idVendor != USB_VID) || (idProduct != USB_PID)) {
+    if ((idVendor != kAtrusUsbVid) || (idProduct != kAtrusUsbPid)) {
       goto unref;
     }
 
