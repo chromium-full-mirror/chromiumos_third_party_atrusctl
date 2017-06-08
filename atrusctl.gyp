@@ -15,12 +15,12 @@
       'type': 'executable',
       'sources': [
         'src/atrusd.cc',
-        'src/crc32.cc',
         'src/diagnose.cc',
         'src/upgrade.cc',
+        'src/usb_device.cc',
+        'src/usb_dfu_device.cc',
         'src/util.cc',
       ],
     },
   ],
 }
-

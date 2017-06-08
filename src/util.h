@@ -5,15 +5,23 @@
 #ifndef UTIL_H_
 #define UTIL_H_
 
-#include <stdbool.h>
-#include <stdint.h>
+#include <cstdint>
 
 namespace atrusctl {
 
-void bcd_to_version(uint16_t bcd, int* major, int* minor, int* patch);
+// Calculates the CRC32 checksum of |data| from the initial |crc|. Example:
+//
+//   uint8_t data;
+//   uint32_t crc = 0xFFFFFFFF;
+//   while ((data = read(file)) {
+//     crc = Crc32(crc, data);
+//   }
+//
+uint32_t Crc32(uint32_t crc, uint8_t data);
 
-void timeout(long ms);
+// Will sleep for |ms|, even if interrupted.
+void TimeoutMs(int64_t ms);
 
 }  // namespace atrusctl
 
-#endif
+#endif  // UTIL_H_
