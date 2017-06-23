@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include <base/macros.h>
 #include <base/message_loop/message_loop.h>
 #include <base/observer_list.h>
 
@@ -49,6 +50,8 @@ class UdevDeviceManager : public base::MessageLoopForIO::Watcher {
   ScopedUdevMonitor monitor_;
   base::MessageLoopForIO::FileDescriptorWatcher watcher_;
   base::ObserverList<UdevSubsystemObserver> observers_;
+
+  DISALLOW_COPY_AND_ASSIGN(UdevDeviceManager);
 };
 
 }  // namespace atrusctl

@@ -7,6 +7,7 @@
 #include <base/files/file_path.h>
 #include <base/format_macros.h>
 #include <base/logging.h>
+#include <base/macros.h>
 #include <base/run_loop.h>
 #include <base/strings/string_number_conversions.h>
 #include <brillo/daemons/daemon.h>
@@ -89,6 +90,8 @@ class Atrusd : public brillo::Daemon, public UdevSubsystemObserver {
   base::FilePath firmware_path_;
   base::TimeDelta diag_interval_;
   base::TimeDelta ext_diag_interval_;
+
+  DISALLOW_COPY_AND_ASSIGN(Atrusd);
 };
 
 }  // namespace atrusctl

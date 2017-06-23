@@ -5,6 +5,7 @@
 #ifndef SCOPED_UDEV_HANDLE_H_
 #define SCOPED_UDEV_HANDLE_H_
 
+#include <base/macros.h>
 #include <libudev.h>
 
 namespace atrusctl {
@@ -27,6 +28,8 @@ class ScopedUdevHandle {
 
  private:
   T* obj_;
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedUdevHandle);
 };
 
 using ScopedUdev = ScopedUdevHandle<struct udev, udev_unref>;

@@ -11,7 +11,7 @@ namespace atrusctl {
 
 class UdevSubsystemObserver {
  public:
-  virtual ~UdevSubsystemObserver() {}
+  virtual ~UdevSubsystemObserver() = default;
 
   virtual void OnDeviceAdded(const std::string& device_path) = 0;
   virtual void OnDeviceRemoved(const std::string& device_path) = 0;
