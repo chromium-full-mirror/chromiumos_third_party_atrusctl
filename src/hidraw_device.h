@@ -9,6 +9,7 @@
 
 #include <base/callback.h>
 #include <base/files/file.h>
+#include <base/macros.h>
 
 #include "hid_connection.h"
 #include "hid_message.h"
@@ -32,7 +33,6 @@ class HIDRawDevice {
                           const HIDMessage& response)>;
   using ConnectCallback = base::Callback<void(const HIDConnection& connection)>;
 
-  void SetPath(const std::string& path);
   bool OpenConnection(const ConnectCallback& callback);
   void Query(const uint16_t command, const QueryCompleteCallback& callback);
 
@@ -48,6 +48,8 @@ class HIDRawDevice {
                            const HIDConnection& connection);
 
   std::string path_;
+
+  DISALLOW_COPY_AND_ASSIGN(HIDRawDevice);
 };
 
 }  // namespace atrusctl

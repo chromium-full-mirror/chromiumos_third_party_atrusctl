@@ -151,8 +151,7 @@ bool UdevDeviceManager::Enumerate() {
 
     // |parent| does not need a ScopedUdevHandle, since it is owned and unrefd
     // internally by |device|.
-    udev_device* parent;
-    parent = udev_device_get_parent_with_subsystem_devtype(
+    udev_device* parent = udev_device_get_parent_with_subsystem_devtype(
         device.get(), "usb", "usb_device");
     if (parent && VerifyDeviceVidPid(parent)) {
       HandleEvent("add", dev_node_path);

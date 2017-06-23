@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef DIAGNOSE_H_
-#define DIAGNOSE_H_
+#ifndef DIAGNOSTICS_H_
+#define DIAGNOSTICS_H_
 
 #include <cstdint>
-
 #include <vector>
 
+#include <base/macros.h>
 #include <base/time/time.h>
 #include <base/timer/timer.h>
 
@@ -62,8 +62,10 @@ class Diagnostics {
   };
   DiagnosticsValue uptime_ = {0, false};
   DiagnosticsValue number_of_connected_slaves_ = {0, false};
+
+  DISALLOW_COPY_AND_ASSIGN(Diagnostics);
 };
 
 }  // namespace atrusctl
 
-#endif  // DIAGNOSE_H_
+#endif  // DIAGNOSTICS_H_
