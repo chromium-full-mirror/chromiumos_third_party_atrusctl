@@ -35,7 +35,6 @@ const uint16_t kCommands[] = {
     0x1804,               // TV_ERLE_MAX
     0x1805,               // TV_ERLE_MEAN
     0x1806,               // TV_ERLE_VARIANCE
-    0x1807,               // TV_FEEDBACK_EST_MIN
     0x1808,               // TV_FEEDBACK_EST_MAX
     0x1809,               // TV_FEEDBACK_EST_MEAN
     0x180A,               // TV_FEEDBACK_EST_VARIANCE
@@ -48,17 +47,6 @@ const uint16_t kCommands[] = {
     0x1811,               // TV_MIC_AVE_MEAN
     0x1812,               // TV_MIC_AVE_VARIANCE
     0x1813,               // TV_LS_NOISE_MIN
-    0x1814,               // TV_LS_NOISE_MAX
-    0x1815,               // TV_LS_NOISE_MEAN
-    0x1816,               // TV_LS_NOISE_VARIANCE
-    0x1817,               // TV_MIC_NOISE_MIN
-    0x1818,               // TV_MIC_NOISE_MAX
-    0x1819,               // TV_MIC_NOISE_MEAN
-    0x181A,               // TV_MIC_NOISE_VARIANCE
-    0x181B,               // TV_GAMMA_MIN
-    0x181C,               // TV_GAMMA_MAX
-    0x181D,               // TV_GAMMA_MEAN
-    0x181E,               // TV_GAMMA_VARIANCE
     0x5000,               // TOUCH_REGISTER_STATUS
     0x5001,               // SPI_QUEUE_STATUS
     0x5004,               // NR_BUTTON_PRESSES
