@@ -117,9 +117,13 @@ void Diagnostics::Start(const base::TimeDelta& diag_interval,
 
   ResetSessionState();
   ext_diag_interval_ = ext_diag_interval;
-  last_extended_diag_time_ = base::TimeTicks::Now();
+  // Perform an extended diagnostic the first time
+  last_extended_diag_time_ = base::TimeTicks();
 
   device_.set_path(device_path);
+
+  // Run a diagnostic immediately, then do it periodically
+  Run();
   diag_timer_.Start(FROM_HERE,
                     diag_interval,
                     base::Bind(&Diagnostics::Run, base::Unretained(this)));
