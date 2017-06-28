@@ -60,6 +60,14 @@ class Atrusd : public brillo::Daemon, public UdevSubsystemObserver {
 
   // UdevSubsystemObserver
   void OnDeviceAdded(const std::string& device_path) override {
+    if (!current_device_path_.empty()) {
+      LOG(INFO) << "Device " << device_path
+                << " added, but it's ignored in favor of "
+                << current_device_path_;
+      return;
+    }
+    current_device_path_ = device_path;
+
     bool skipped;
     bool ret = PerformUpgrade(firmware_path_, &skipped);
     LOG(INFO) << "Upgrade "
@@ -70,7 +78,11 @@ class Atrusd : public brillo::Daemon, public UdevSubsystemObserver {
 
   // UdevSubsystemObserver
   void OnDeviceRemoved(const std::string& device_path) override {
+    if (device_path != current_device_path_) {
+      return;
+    }
     DisableDiagnostics();
+    current_device_path_.clear();
   }
 
   void EnableDiagnostics(const std::string& device_path) {
@@ -90,6 +102,7 @@ class Atrusd : public brillo::Daemon, public UdevSubsystemObserver {
   base::FilePath firmware_path_;
   base::TimeDelta diag_interval_;
   base::TimeDelta ext_diag_interval_;
+  std::string current_device_path_;
 
   DISALLOW_COPY_AND_ASSIGN(Atrusd);
 };
