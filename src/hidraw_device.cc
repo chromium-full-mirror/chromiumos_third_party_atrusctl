@@ -77,9 +77,9 @@ HIDRawDevice::QueryResult HIDRawDevice::ExecuteQuery(
 
   // Read response from HID device, try |kMaxQueryReadRetries| times
   for (int retry = 0; retry < kMaxQueryReadRetries; retry++) {
-    if (!connection.WaitUntilReadable()) {
-      // Connection timed out, i.e. the device did not respond with any data
-      return kQueryTimeout;
+    bool timeout;
+    if (!connection.WaitUntilReadable(&timeout)) {
+      return (timeout ? kQueryTimeout : kQueryError);
     }
 
     std::vector<uint8_t> response_buffer(kHidMaxInputReportSizeBytes);

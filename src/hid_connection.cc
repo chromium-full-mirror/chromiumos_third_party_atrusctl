@@ -40,8 +40,9 @@ void HIDConnection::Close() {
 // to retry the operation. Since select() modifies the timeout structure
 // |tv| when this happens, we need to reset it before each retry. Hence the
 // do-while loop.
-bool HIDConnection::WaitUntilReadable() const {
+bool HIDConnection::WaitUntilReadable(bool* timeout) const {
   DCHECK(fd_.is_valid());
+  *timeout = false;
 
   fd_set readset;
   struct timeval tv;
@@ -55,8 +56,10 @@ bool HIDConnection::WaitUntilReadable() const {
     if ((retval < 0) && (errno != EINTR)) {
       PLOG(ERROR) << "select";
       return false;
-    } else if (retval == 0) {
-      return false;  // TODO(karl@limesaudio.com): handle timeout differently
+    }
+    if (retval == 0) {
+      *timeout = true;
+      return false;
     }
   } while ((retval < 0) && (errno == EINTR));
 
