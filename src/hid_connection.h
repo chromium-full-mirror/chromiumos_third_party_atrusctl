@@ -16,7 +16,7 @@ class HIDConnection {
  public:
   bool Open(const std::string& path);
   void Close();
-  bool WaitUntilReadable() const;
+  bool WaitUntilReadable(bool* timeout) const;
   bool Write(const std::vector<uint8_t>& buffer) const;
   bool Read(std::vector<uint8_t>* buffer, size_t buffer_size) const;
 
