@@ -155,11 +155,10 @@ bool UdevDeviceManager::Enumerate() {
         device.get(), "usb", "usb_device");
     if (parent && VerifyDeviceVidPid(parent)) {
       HandleEvent("add", dev_node_path);
-      return true;
     }
   }
 
-  return false;
+  return true;
 }
 
 void UdevDeviceManager::OnFileCanReadWithoutBlocking(int fd) {

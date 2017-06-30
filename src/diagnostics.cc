@@ -130,6 +130,9 @@ void Diagnostics::Run() {
       (now - last_extended_diag_time_ > ext_diag_interval_)) {
     last_extended_diag_time_ = now;
     QueryDeviceWithCommands(commands_extended_);
+    LOG(INFO) << "Number of Atrus devices connected: "
+              << number_of_connected_devices_.value;
+    number_of_connected_devices_.changed = false;
   }
 }
 
@@ -182,6 +185,12 @@ void Diagnostics::HandleQueryResult(HIDRawDevice::QueryResult code,
   }
 }
 
+void Diagnostics::UpdateNumberOfDevices(int new_value) {
+  number_of_connected_devices_.changed =
+      (new_value != number_of_connected_devices_.value);
+  number_of_connected_devices_.value = new_value;
+}
+
 void Diagnostics::UpdateUptime(int new_value) {
   uptime_.changed = (new_value < uptime_.value);
   uptime_.value = new_value;
@@ -198,10 +207,12 @@ void Diagnostics::ResetSessionState() {
   uptime_.changed = false;
   number_of_connected_slaves_.value = 0;
   number_of_connected_slaves_.changed = false;
+  // don't reset number_of_connected_devices_, it's updated on udev events
 }
 
 bool Diagnostics::SessionStateHasChanged() const {
-  return (uptime_.changed || number_of_connected_slaves_.changed);
+  return (uptime_.changed || number_of_connected_slaves_.changed ||
+          number_of_connected_devices_.changed);
 }
 
 }  // namespace atrusctl
