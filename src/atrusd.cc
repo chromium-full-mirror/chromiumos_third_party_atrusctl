@@ -60,6 +60,7 @@ class Atrusd : public brillo::Daemon, public UdevSubsystemObserver {
 
   // UdevSubsystemObserver
   void OnDeviceAdded(const std::string& device_path) override {
+    diagnostics_.UpdateNumberOfDevices(++device_counter_);
     if (!current_device_path_.empty()) {
       LOG(INFO) << "Device " << device_path
                 << " added, but it's ignored in favor of "
@@ -78,6 +79,7 @@ class Atrusd : public brillo::Daemon, public UdevSubsystemObserver {
 
   // UdevSubsystemObserver
   void OnDeviceRemoved(const std::string& device_path) override {
+    diagnostics_.UpdateNumberOfDevices(--device_counter_);
     if (device_path != current_device_path_) {
       return;
     }
@@ -103,6 +105,7 @@ class Atrusd : public brillo::Daemon, public UdevSubsystemObserver {
   base::TimeDelta diag_interval_;
   base::TimeDelta ext_diag_interval_;
   std::string current_device_path_;
+  int device_counter_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(Atrusd);
 };

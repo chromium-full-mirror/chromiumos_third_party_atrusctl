@@ -25,6 +25,7 @@ class Diagnostics {
              const base::TimeDelta& ext_diag_interval,
              const std::string& device_path);
   void Stop();
+  void UpdateNumberOfDevices(int new_value);
 
  private:
   void Run();
@@ -62,6 +63,7 @@ class Diagnostics {
   };
   DiagnosticsValue uptime_ = {0, false};
   DiagnosticsValue number_of_connected_slaves_ = {0, false};
+  DiagnosticsValue number_of_connected_devices_ = {0, false};
 
   DISALLOW_COPY_AND_ASSIGN(Diagnostics);
 };
