@@ -66,6 +66,8 @@ class Atrusd : public brillo::Daemon, public UdevSubsystemObserver {
                 << " added, but it's ignored in favor of "
                 << current_device_path_;
       return;
+    } else {
+      LOG(INFO) << "Atrus device added";
     }
     current_device_path_ = device_path;
 
@@ -73,6 +75,7 @@ class Atrusd : public brillo::Daemon, public UdevSubsystemObserver {
     bool ret = PerformUpgrade(firmware_path_, &skipped);
     LOG(INFO) << "Upgrade "
               << (ret ? (skipped ? "skipped" : "succeeded") : "failed");
+    LOG(INFO) << "[Device is entering usage mode]";
 
     EnableDiagnostics(device_path);
   }
@@ -83,12 +86,16 @@ class Atrusd : public brillo::Daemon, public UdevSubsystemObserver {
     if (device_path != current_device_path_) {
       return;
     }
+    LOG(INFO) << "Atrus device removed";
     DisableDiagnostics();
     current_device_path_.clear();
+    LOG(INFO) << "(" << diagnostics_.number_of_connected_slaves() << ")"
+              << " daisy-chained devices disconnected as a result";
   }
 
   void EnableDiagnostics(const std::string& device_path) {
     LOG(INFO) << "Polling diagnostics every " << diag_interval_;
+    VLOG(1) << "Diagnostics specification can be found here: go/atrus-diag";
 
     diagnostics_.Start(diag_interval_, ext_diag_interval_, device_path);
   }
@@ -119,10 +126,10 @@ int main(int argc, char* argv[]) {
                 "1800",
                 "Polling interval for extended diagnostics (s)");
 
-  brillo::InitLog(brillo::InitFlags::kLogToSyslog);
-
   brillo::FlagHelper::Init(argc, argv, kDaemonName);
   CHECK(!FLAGS_upgrade_file_path.empty()) << "--upgrade_file_path is required";
+
+  brillo::InitLog(brillo::InitFlags::kLogToSyslog);
 
   unsigned int diag_interval_s = 0, ext_diag_interval_s = 0;
   base::StringToUint(FLAGS_diag_interval, &diag_interval_s);
@@ -136,5 +143,6 @@ int main(int argc, char* argv[]) {
   atrusctl::Atrusd atrusd(base::FilePath(FLAGS_upgrade_file_path),
                           base::TimeDelta::FromSeconds(diag_interval_s),
                           base::TimeDelta::FromSeconds(ext_diag_interval_s));
+
   return atrusd.Run();
 }
