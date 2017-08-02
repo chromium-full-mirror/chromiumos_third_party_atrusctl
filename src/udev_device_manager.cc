@@ -108,7 +108,7 @@ bool UdevDeviceManager::Initialize() {
     return false;
   }
 
-  LOG(INFO) << base::StringPrintf(
+  VLOG(2) << base::StringPrintf(
       "Watching FD %d for udev events with tag: %s", fd, kAtrusTag);
 
   return true;
@@ -134,7 +134,7 @@ bool UdevDeviceManager::Enumerate() {
 
   udev_list_entry* devices = udev_enumerate_get_list_entry(enumerate.get());
   if (!devices) {
-    LOG(INFO) << "udev_enumerate_get_list_entry() returned empty list";
+    VLOG(1) << "udev_enumerate_get_list_entry() returned empty list";
     return false;
   }
   udev_list_entry* dev_list_entry;
@@ -171,7 +171,7 @@ void UdevDeviceManager::OnFileCanReadWithoutBlocking(int fd) {
   const char* dev_node_path = udev_device_get_devnode(device.get());
   const char* action_str = udev_device_get_action(device.get());
 
-  LOG(INFO) << base::StringPrintf(
+  VLOG(1) << base::StringPrintf(
       "Received event: dev_node_path=%s action_str=%s",
       dev_node_path,
       action_str);
@@ -196,8 +196,8 @@ void UdevDeviceManager::HandleEvent(const std::string& action_str,
           UdevSubsystemObserver, observers_, OnDeviceRemoved(device_path));
       break;
     default:
-      LOG(INFO) << "Unhandled udev event received for tag '" << kAtrusTag
-                << "': " << action_str;
+      VLOG(1) << "Unhandled udev event received for tag '" << kAtrusTag
+              << "': " << action_str;
       break;
   }
 }

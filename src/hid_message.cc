@@ -55,7 +55,7 @@ bool HIDMessage::Validate(const HIDMessage& other) {
 }
 
 std::string HIDMessage::ToString() const {
-  return (base::StringPrintf("0x%04X: %s", command_id_, body_.c_str()));
+  return (base::StringPrintf("[0x%04X]: %s", command_id_, body_.c_str()));
 }
 
 }  // namespace atrusctl

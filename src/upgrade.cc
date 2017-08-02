@@ -100,7 +100,7 @@ bool ParseSuffixFromData(const std::vector<char>& data,
 
 bool PerformUpgrade(const base::FilePath& upgrade_file, bool* skipped) {
   *skipped = false;
-  LOG(INFO) << "Trying to upgrade";
+  LOG(INFO) << "[Device is entering upgrade mode]";
   LOG(INFO) << "Upgrade file " << upgrade_file.value();
 
   int64_t file_size;

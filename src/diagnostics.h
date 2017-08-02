@@ -19,6 +19,11 @@ namespace atrusctl {
 
 class Diagnostics {
  public:
+  struct DiagCommand {
+    uint16_t id;
+    const char* description;
+  };
+
   Diagnostics();
 
   void Start(const base::TimeDelta& diag_interval,
@@ -27,10 +32,15 @@ class Diagnostics {
   void Stop();
   void UpdateNumberOfDevices(int new_value);
 
+  int number_of_connected_slaves() const {
+    return number_of_connected_slaves_.value;
+  };
+
  private:
   void Run();
-  void QueryDeviceWithCommands(const std::vector<uint16_t>& commands);
-  void HandleQueryResult(HIDRawDevice::QueryResult code,
+  void QueryDeviceWithCommands(const std::vector<DiagCommand>& commands);
+  void HandleQueryResult(const std::string& cmd_desc,
+                         HIDRawDevice::QueryResult code,
                          const HIDMessage& request,
                          const HIDMessage& response);
   void UpdateUptime(int new_value);
@@ -38,8 +48,8 @@ class Diagnostics {
   void ResetSessionState();
   bool SessionStateHasChanged() const;
 
-  const std::vector<uint16_t> commands_;
-  const std::vector<uint16_t> commands_extended_;
+  const std::vector<DiagCommand> commands_;
+  const std::vector<DiagCommand> commands_extended_;
 
   HIDRawDevice device_;
 
