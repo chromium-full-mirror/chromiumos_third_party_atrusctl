@@ -33,16 +33,23 @@ class Diagnostics {
   void UpdateNumberOfDevices(int new_value);
 
   int number_of_connected_slaves() const {
-    return number_of_connected_slaves_.value;
+    return number_of_connected_slaves_;
   };
 
  private:
   void Run();
   void QueryDeviceWithCommands(const std::vector<DiagCommand>& commands);
+  void PollMicSpkStatus();
+  void LogResponse(const std::string& cmd_desc, const HIDMessage& response);
+  void LogQueryError(HIDRawDevice::QueryResult code, const HIDMessage& request);
   void HandleQueryResult(const std::string& cmd_desc,
                          HIDRawDevice::QueryResult code,
                          const HIDMessage& request,
                          const HIDMessage& response);
+  void HandleMicSpkQueryResult(const std::string& cmd_desc,
+                               HIDRawDevice::QueryResult code,
+                               const HIDMessage& request,
+                               const HIDMessage& response);
   void UpdateUptime(int new_value);
   void UpdateNumberOfConnectedSlaves(int new_value);
   void ResetSessionState();
@@ -50,30 +57,36 @@ class Diagnostics {
 
   const std::vector<DiagCommand> commands_;
   const std::vector<DiagCommand> commands_extended_;
+  const std::vector<DiagCommand> commands_micspk_;
 
   HIDRawDevice device_;
+
+  // Determines if the next call of Run() should perform an extended diagnose
+  bool should_do_extended_diagnose_ = true;
 
   // This timer determines how often Run() should be called, i.e. how often
   // diagnostics should be fetched from the device, after calling Start().
   base::RepeatingTimer diag_timer_;
 
-  // Used to determine how often extended diagnostics should be run, i.e. how
-  // often we also send the commands in |commands_extended_| to the device when
-  // Run() is called.
+  // Used to determine how often extended diagnostics should be run per default,
+  // i.e. how often we also send the commands in |commands_extended_| to the
+  // device when Run() is called.
   base::TimeDelta ext_diag_interval_;
   base::TimeTicks last_extended_diag_time_;
 
   // Below state is fetched from the device each time Run() is called. Whenever
-  // a change in these values is detected on the device, we use that as a
-  // trigger for doing an extended diagnose on the next call of Run() (same
+  // a certain change in these values is detected on the device, we flag for
+  // doing an extended diagnose on the next call of Run() (same
   // effect as explained above for |ext_diag_interval_|).
-  struct DiagnosticsValue {
-    int value;
-    bool changed;
-  };
-  DiagnosticsValue uptime_ = {0, false};
-  DiagnosticsValue number_of_connected_slaves_ = {0, false};
-  DiagnosticsValue number_of_connected_devices_ = {0, false};
+  int uptime_ = 0;
+  int number_of_connected_devices_ = 0;
+  int number_of_connected_slaves_ = 0;
+  std::string mic_selected_;
+  std::string spk_selected_;
+  std::string spk_silence_;
+
+  base::RepeatingTimer micspk_timer_;
+  base::TimeDelta micspk_polling_interval_;
 
   DISALLOW_COPY_AND_ASSIGN(Diagnostics);
 };
