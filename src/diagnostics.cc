@@ -20,8 +20,13 @@ namespace atrusctl {
 
 namespace {
 
+using QueryResult = HIDRawDevice::QueryResult;
+
 const uint16_t kCommandStateUptime = 0x1604;
 const uint16_t kCommandDaisySlaves = 0x1351;
+const uint16_t kCommandMicSelected = 0x1706;
+const uint16_t kCommandSpkSelected = 0x1707;
+const uint16_t kCommandSpkAudio = 0x1708;
 
 const Diagnostics::DiagCommand kCommands[] = {
     {kCommandStateUptime, "Device uptime seconds"},       // STATE_UPTIME
@@ -58,6 +63,9 @@ const Diagnostics::DiagCommand kCommands[] = {
     {0x5000, "Touch register status"},  // TOUCH_REGISTER_STATUS
     {0x5001, "SPI queue status"},       // SPI_QUEUE_STATUS
     {0x5004, "Button presses"},         // NR_BUTTON_PRESSES
+    {kCommandMicSelected, "Mic selected"},
+    {kCommandSpkSelected, "Speaker selected"},
+    {kCommandSpkAudio, "Speaker audio"},
 };
 
 const Diagnostics::DiagCommand kCommandsExtended[] = {
@@ -79,8 +87,16 @@ const Diagnostics::DiagCommand kCommandsExtended[] = {
     {0x5003, "RF_NOISE_DETECTION"},       // RF_NOISE_DETECTION
 };
 
+const Diagnostics::DiagCommand kCommandsMicSpk[] = {
+    {kCommandMicSelected, "Mic selected"},
+    {kCommandSpkSelected, "Speaker selected"},
+    {kCommandSpkAudio, "Speaker audio"},
+};
+
 // TODO(karl@limesaudio.com): Remove this when fixed in firmware
 const int64_t kDiagDelay = 10;
+
+const int kPollMicSpkStatusIntervalSeconds = 5;
 
 // Because this is used to parse a string containing a number and trailing
 // characters, check |new_value| rather than the return value of
@@ -102,7 +118,9 @@ bool ParseIntFromResponseBody(const std::string& str, int* val) {
 Diagnostics::Diagnostics()
     : commands_(kCommands, kCommands + arraysize(kCommands)),
       commands_extended_(kCommandsExtended,
-                         kCommandsExtended + arraysize(kCommandsExtended)) {}
+                         kCommandsExtended + arraysize(kCommandsExtended)),
+      commands_micspk_(kCommandsMicSpk,
+                       kCommandsMicSpk + arraysize(kCommandsMicSpk)) {}
 
 void Diagnostics::Start(const base::TimeDelta& diag_interval,
                         const base::TimeDelta& ext_diag_interval,
@@ -110,6 +128,7 @@ void Diagnostics::Start(const base::TimeDelta& diag_interval,
   if (diag_timer_.IsRunning()) {
     LOG(INFO) << "Diagnostics started while already running";
     diag_timer_.Stop();
+    micspk_timer_.Stop();
   }
 
   ResetSessionState();
@@ -118,6 +137,11 @@ void Diagnostics::Start(const base::TimeDelta& diag_interval,
   last_extended_diag_time_ = base::TimeTicks();
 
   device_.set_path(device_path);
+
+  micspk_timer_.Start(
+      FROM_HERE,
+      base::TimeDelta::FromSeconds(kPollMicSpkStatusIntervalSeconds),
+      base::Bind(&Diagnostics::PollMicSpkStatus, base::Unretained(this)));
 
   // Run a diagnostic immediately, then do it periodically
   Run();
@@ -130,27 +154,49 @@ void Diagnostics::Stop() {
   if (diag_timer_.IsRunning()) {
     diag_timer_.Stop();
   }
+  if (micspk_timer_.IsRunning()) {
+    micspk_timer_.Stop();
+  }
 }
 
 void Diagnostics::Run() {
   LOG(INFO) << "-- Report start --";
-  base::TimeTicks now = base::TimeTicks::Now();
+  const base::TimeTicks now = base::TimeTicks::Now();
   QueryDeviceWithCommands(commands_);
-  if (SessionStateHasChanged() ||
-      (now - last_extended_diag_time_ > ext_diag_interval_)) {
+
+  if (now - last_extended_diag_time_ > ext_diag_interval_) {
     last_extended_diag_time_ = now;
+    should_do_extended_diagnose_ = true;
+  }
+
+  if (should_do_extended_diagnose_) {
+    should_do_extended_diagnose_ = false;
     LOG(INFO) << "-- Extended report --";
     QueryDeviceWithCommands(commands_extended_);
     LOG(INFO) << "Number of USB devices connected: "
-              << number_of_connected_devices_.value;
-    number_of_connected_devices_.changed = false;
+              << number_of_connected_devices_;
   }
   LOG(INFO) << "-- Report end --";
 }
 
+void Diagnostics::PollMicSpkStatus() {
+  for (const DiagCommand& command : commands_micspk_) {
+    device_.Query(command.id,
+                  base::Bind(&Diagnostics::HandleMicSpkQueryResult,
+                             base::Unretained(this),
+                             command.description));
+    // Workaround for firmware < v0.7.0
+    // TODO(karl@limesaudio.com): Remove this when fixed in firmware
+    // TODO(karl@limesaudio.com) Update: Due to issues with USB performance
+    // for fast volume events, keep this until we can verify that it does not
+    // stress the Atrus further
+    TimeoutMs(kDiagDelay);
+  }
+}
+
 void Diagnostics::QueryDeviceWithCommands(
     const std::vector<DiagCommand>& commands) {
-  for (const DiagCommand command : commands) {
+  for (const DiagCommand& command : commands) {
     // This check is to see when the TV parameters are about to be read,
     // (starting at 0x1804) and in that case prepend the below line for more
     // readability in the log
@@ -161,80 +207,123 @@ void Diagnostics::QueryDeviceWithCommands(
                              command.description));
     // Workaround for firmware < v0.7.0
     // TODO(karl@limesaudio.com): Remove this when fixed in firmware
+    // TODO(karl@limesaudio.com) Update: Due to issues with USB performance
+    // for fast volume events, keep this until we can verify that it does not
+    // stress the Atrus further
     TimeoutMs(kDiagDelay);
   }
 }
 
-void Diagnostics::HandleQueryResult(const std::string& cmd_desc,
-                                    HIDRawDevice::QueryResult code,
-                                    const HIDMessage& request,
-                                    const HIDMessage& response) {
+void Diagnostics::LogResponse(const std::string& cmd_desc,
+                              const HIDMessage& response) {
+  if (VLOG_IS_ON(1)) {
+    LOG(INFO) << cmd_desc << " " << response.ToString();
+  } else {
+    LOG(INFO) << response.ToString();
+  }
+}
+
+void Diagnostics::LogQueryError(QueryResult code, const HIDMessage& request) {
   switch (code) {
-    case HIDRawDevice::QueryResult::kQueryUnknownResponse:
+    case QueryResult::kQueryUnknownResponse:
       LOG(INFO) << base::StringPrintf("0x%04X: Error: unknown response",
                                       request.command_id());
       break;
-    case HIDRawDevice::QueryResult::kQueryError:
+    case QueryResult::kQueryError:
       LOG(INFO) << base::StringPrintf("0x%04X: Error: report failed",
                                       request.command_id());
       break;
-    case HIDRawDevice::QueryResult::kQueryTimeout:
+    case QueryResult::kQueryTimeout:
       LOG(INFO) << base::StringPrintf("0x%04X: Error: timeout",
                                       request.command_id());
       break;
-    case HIDRawDevice::QueryResult::kQuerySuccess: {
-      if (VLOG_IS_ON(1)) {
-        LOG(INFO) << cmd_desc << " " << response.ToString();
-      } else {
-        LOG(INFO) << response.ToString();
-      }
+    case QueryResult::kQuerySuccess:
+    default:
+      LOG(INFO) << base::StringPrintf("0x%04X: Unhandled error",
+                                      request.command_id());
+      break;
+  }
+}
 
-      int new_value;
-      switch (response.command_id()) {
-        case kCommandStateUptime:
-          if (ParseIntFromResponseBody(response.body(), &new_value)) {
-            UpdateUptime(new_value);
-          }
-          break;
-        case kCommandDaisySlaves:
-          if (ParseIntFromResponseBody(response.body(), &new_value)) {
-            UpdateNumberOfConnectedSlaves(new_value);
-          }
-          break;
+void Diagnostics::HandleQueryResult(const std::string& cmd_desc,
+                                    QueryResult code,
+                                    const HIDMessage& request,
+                                    const HIDMessage& response) {
+  if (code != QueryResult::kQuerySuccess) {
+    return LogQueryError(code, request);
+  }
+
+  LogResponse(cmd_desc, response);
+
+  int new_value;
+  switch (response.command_id()) {
+    case kCommandStateUptime:
+      if (ParseIntFromResponseBody(response.body(), &new_value)) {
+        UpdateUptime(new_value);
       }
       break;
-    }
+    case kCommandDaisySlaves:
+      if (ParseIntFromResponseBody(response.body(), &new_value)) {
+        UpdateNumberOfConnectedSlaves(new_value);
+      }
+      break;
+  }
+}
+
+void Diagnostics::HandleMicSpkQueryResult(const std::string& cmd_desc,
+                                          QueryResult code,
+                                          const HIDMessage& request,
+                                          const HIDMessage& response) {
+  switch (response.command_id()) {
+    case kCommandMicSelected:
+      if (mic_selected_ != response.body()) {
+        LogResponse(cmd_desc, response);
+      }
+      mic_selected_ = response.body();
+      break;
+    case kCommandSpkSelected:
+      if (spk_selected_ != response.body()) {
+        LogResponse(cmd_desc, response);
+      }
+      spk_selected_ = response.body();
+      break;
+    case kCommandSpkAudio:
+      if (spk_silence_ != response.body()) {
+        LogResponse(cmd_desc, response);
+      }
+      spk_silence_ = response.body();
+      break;
   }
 }
 
 void Diagnostics::UpdateNumberOfDevices(int new_value) {
-  number_of_connected_devices_.changed =
-      (new_value != number_of_connected_devices_.value);
-  number_of_connected_devices_.value = new_value;
+  if (new_value != number_of_connected_devices_) {
+    should_do_extended_diagnose_ = true;
+  }
+  number_of_connected_devices_ = new_value;
 }
 
 void Diagnostics::UpdateUptime(int new_value) {
-  uptime_.changed = (new_value < uptime_.value);
-  uptime_.value = new_value;
+  if (new_value < uptime_) {
+    should_do_extended_diagnose_ = true;
+  }
+  uptime_ = new_value;
 }
 
 void Diagnostics::UpdateNumberOfConnectedSlaves(int new_value) {
-  number_of_connected_slaves_.changed =
-      (new_value != number_of_connected_slaves_.value);
-  number_of_connected_slaves_.value = new_value;
+  if (new_value != number_of_connected_slaves_) {
+    should_do_extended_diagnose_ = true;
+  }
+  number_of_connected_slaves_ = new_value;
 }
 
 void Diagnostics::ResetSessionState() {
-  uptime_.value = 0;
-  uptime_.changed = false;
-  number_of_connected_slaves_.value = 0;
-  number_of_connected_slaves_.changed = false;
-  // don't reset number_of_connected_devices_, it's updated on udev events
-}
-
-bool Diagnostics::SessionStateHasChanged() const {
-  return (uptime_.changed || number_of_connected_slaves_.changed ||
-          number_of_connected_devices_.changed);
+  uptime_ = 0;
+  number_of_connected_slaves_ = 0;
+  // don't reset |number_of_connected_devices_|, it's updated on udev events
+  mic_selected_.clear();
+  spk_selected_.clear();
+  spk_silence_.clear();
 }
 
 }  // namespace atrusctl
