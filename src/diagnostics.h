@@ -51,7 +51,8 @@ class Diagnostics {
                              const HIDMessage& request,
                              const HIDMessage& response);
   void UpdateUptime(int new_value);
-  void UpdateNumberOfConnectedSlaves(int new_value);
+  // Returns true if |number_of_connected_slaves_| was set to |new_value|
+  bool UpdateNumberOfConnectedSlaves(int new_value);
   void ResetSessionState();
   bool SessionStateHasChanged() const;
 
@@ -82,10 +83,15 @@ class Diagnostics {
   int uptime_ = 0;
   int number_of_connected_devices_ = 0;
   int number_of_connected_slaves_ = 0;
+
+  // State that is polled more often from the device. When a change in these
+  // values is detected, the updated value is written to syslog along with its
+  // command ID
   std::string mic_selected_;
   std::string spk_selected_;
   std::string spk_silence_;
   std::string call_status_;
+  std::string dfu_status_;
 
   base::RepeatingTimer poll_timer_;
 
