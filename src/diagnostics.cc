@@ -28,11 +28,12 @@ const uint16_t kCommandMicSelected = 0x1706;
 const uint16_t kCommandSpkSelected = 0x1707;
 const uint16_t kCommandSpkAudio = 0x1708;
 const uint16_t kCommandHookStatus = 0x1601;
+const uint16_t kCommandDfuStatus = 0x1500;
 
 const Diagnostics::DiagCommand kCommands[] = {
     {kCommandStateUptime, "Device uptime seconds"},       // STATE_UPTIME
     {kCommandDaisySlaves, "Number of connected slaves"},  // DAISY_NUM_SLAVES
-    {0x1500, "DFU status"},                               // DAISY_DFU_STATUS
+    {kCommandDfuStatus, "DFU status"},                    // DAISY_DFU_STATUS
     {0x1600, "Mute status"},                              // STATE_MUTED
     {kCommandHookStatus, "Hook status"},                  // STATE_HOOK_OFF
     {0x1602, "Volume"},                                   // STATE_VOLUME
@@ -96,6 +97,8 @@ const Diagnostics::DiagCommand kCommandsPoll[] = {
     {kCommandSpkSelected, "Speaker selected"},
     {kCommandSpkAudio, "Speaker audio"},
     {kCommandHookStatus, "Hook status"},
+    {kCommandDaisySlaves, "Number of connected slaves"},
+    {kCommandDfuStatus, "DFU status"},
 };
 
 // TODO(karl@limesaudio.com): Remove this when fixed in firmware
@@ -178,12 +181,12 @@ void Diagnostics::Run() {
   }
 
   if (now - last_extended_diag_time_ > ext_diag_interval_) {
-    last_extended_diag_time_ = now;
     should_do_extended_diagnose_ = true;
   }
 
   if (should_do_extended_diagnose_) {
     should_do_extended_diagnose_ = false;
+    last_extended_diag_time_ = now;
     LOG(INFO) << "-- Extended report --";
     QueryDeviceWithCommands(commands_extended_);
     LOG(INFO) << "Number of USB devices connected: "
@@ -276,6 +279,8 @@ void Diagnostics::HandleQueryResult(const std::string& cmd_desc,
       break;
     case kCommandDaisySlaves:
       if (ParseIntFromResponseBody(response.body(), &new_value)) {
+        // Ignore return value here, since we aready logged the response above.
+        // This is just to make sure the value is updated.
         UpdateNumberOfConnectedSlaves(new_value);
       }
       break;
@@ -311,6 +316,21 @@ void Diagnostics::HandlePollQueryResult(const std::string& cmd_desc,
         LogResponse(cmd_desc, response);
       }
       call_status_ = response.body();
+      break;
+    case kCommandDfuStatus:
+      if (dfu_status_ != response.body()) {
+        LogResponse(cmd_desc, response);
+      }
+      dfu_status_ = response.body();
+      break;
+    case kCommandDaisySlaves:
+      int new_value;
+      if (ParseIntFromResponseBody(response.body(), &new_value)) {
+        if (UpdateNumberOfConnectedSlaves(new_value)) {
+          LogResponse(cmd_desc, response);
+        }
+      }
+      break;
   }
 }
 
@@ -328,11 +348,13 @@ void Diagnostics::UpdateUptime(int new_value) {
   uptime_ = new_value;
 }
 
-void Diagnostics::UpdateNumberOfConnectedSlaves(int new_value) {
+bool Diagnostics::UpdateNumberOfConnectedSlaves(int new_value) {
   if (new_value != number_of_connected_slaves_) {
     should_do_extended_diagnose_ = true;
+    number_of_connected_slaves_ = new_value;
+    return true;
   }
-  number_of_connected_slaves_ = new_value;
+  return false;
 }
 
 void Diagnostics::ResetSessionState() {
