@@ -111,7 +111,8 @@ class UsbDfuDevice : public UsbDevice {
   bool DownloadFileBlock(int16_t block,
                          uint8_t* data,
                          uint16_t length,
-                         State expected_state) const;
+                         State expected_state,
+                         uint32_t* poll_timeout = nullptr) const;
 
   void OnDfuError() const;
 

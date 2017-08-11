@@ -287,14 +287,19 @@ bool UsbDfuDevice::DownloadFile(const std::vector<char>& file_data) const {
     if (!DownloadFileBlock(block_index++,
                            reinterpret_cast<uint8_t*>(&local_file_data[offset]),
                            size_to_download,
-                           kStateDfuDnloadIdle)) {
+                           kStateDfuDnloadIdle,
+                           &status_req.poll_timeout)) {
       return false;
     }
   }
   // After the whole file is downloaded, issue a final download request with
   // length = 0 to inform the device of this. See section A.2.6 in the
   // specification for details.
-  if (!DownloadFileBlock(block_index, nullptr, 0, kStateDfuManifest)) {
+  if (!DownloadFileBlock(block_index,
+                         nullptr,
+                         0,
+                         kStateDfuManifest,
+                         &status_req.poll_timeout)) {
     return false;
   }
   LOG(INFO) << "Download completed";
@@ -313,15 +318,19 @@ bool UsbDfuDevice::DownloadFile(const std::vector<char>& file_data) const {
 bool UsbDfuDevice::DownloadFileBlock(int16_t block,
                                      uint8_t* data,
                                      uint16_t length,
-                                     State expected_state) const {
-  StatusRequest status_req;
+                                     State expected_state,
+                                     uint32_t* poll_timeout) const {
   if (!Download(block, data, length)) {
     return false;
   }
-  TimeoutMs(status_req.poll_timeout);
+  TimeoutMs(poll_timeout ? *poll_timeout : 0);
+  StatusRequest status_req;
   if (!GetStatus(&status_req)) {
     LOG(ERROR) << "Could not get status from device during download";
     return false;
+  }
+  if (poll_timeout) {
+    *poll_timeout = status_req.poll_timeout;
   }
   if (status_req.state == kStateDfuError) {
     OnDfuError();
