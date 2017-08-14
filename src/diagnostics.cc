@@ -27,45 +27,49 @@ const uint16_t kCommandDaisySlaves = 0x1351;
 const uint16_t kCommandMicSelected = 0x1706;
 const uint16_t kCommandSpkSelected = 0x1707;
 const uint16_t kCommandSpkAudio = 0x1708;
+const uint16_t kCommandHookStatus = 0x1601;
 
 const Diagnostics::DiagCommand kCommands[] = {
     {kCommandStateUptime, "Device uptime seconds"},       // STATE_UPTIME
     {kCommandDaisySlaves, "Number of connected slaves"},  // DAISY_NUM_SLAVES
     {0x1500, "DFU status"},                               // DAISY_DFU_STATUS
     {0x1600, "Mute status"},                              // STATE_MUTED
-    {0x1601, "Hook status"},                              // STATE_HOOK_OFF
+    {kCommandHookStatus, "Hook status"},                  // STATE_HOOK_OFF
     {0x1602, "Volume"},                                   // STATE_VOLUME
     {0x1603, "LED status"},                               // STATE_LED
     {0x1605, "SHARC status"},                             // STATE_SHARC_ALIVE
-    {0x1804, ""},                                         // TV_ERLE_MAX
-    {0x1805, ""},                                         // TV_ERLE_MEAN
-    {0x1806, ""},                                         // TV_ERLE_VARIANCE
-    {0x1807, ""},                                         // TV_FEEDBACK_EST_MIN
-    {0x1808, ""},                                         // TV_FEEDBACK_EST_MAX
-    {0x1809, ""},                       // TV_FEEDBACK_EST_MEAN
-    {0x180A, ""},                       // TV_FEEDBACK_EST_VARIANCE
-    {0x180B, ""},                       // TV_NR_MIN
-    {0x180C, ""},                       // TV_NR_MAX
-    {0x180D, ""},                       // TV_NR_MEAN
-    {0x180E, ""},                       // TV_NR_VARIANCE
-    {0x180F, ""},                       // TV_MIC_AVE_MIN
-    {0x1810, ""},                       // TV_MIC_AVE_MAX
-    {0x1811, ""},                       // TV_MIC_AVE_MEAN
-    {0x1812, ""},                       // TV_MIC_AVE_VARIANCE
-    {0x1813, ""},                       // TV_LS_NOISE_MIN
-    {0x1814, ""},                       // TV_LS_NOISE_MAX
-    {0x1815, ""},                       // TV_LS_NOISE_MEAN
-    {0x1816, ""},                       // TV_LS_NOISE_VARIANCE
-    {0x1817, ""},                       // TV_MIC_NOISE_MIN
-    {0x1818, ""},                       // TV_MIC_NOISE_MAX
-    {0x1819, ""},                       // TV_MIC_NOISE_MEAN
-    {0x181A, ""},                       // TV_MIC_NOISE_VARIANCE
     {0x5000, "Touch register status"},  // TOUCH_REGISTER_STATUS
     {0x5001, "SPI queue status"},       // SPI_QUEUE_STATUS
     {0x5004, "Button presses"},         // NR_BUTTON_PRESSES
     {kCommandMicSelected, "Mic selected"},
     {kCommandSpkSelected, "Speaker selected"},
     {kCommandSpkAudio, "Speaker audio"},
+};
+
+const Diagnostics::DiagCommand kCommandsTrueVoice[] = {
+    {0x1804, ""},  // TV_ERLE_MAX
+    {0x1805, ""},  // TV_ERLE_MEAN
+    {0x1806, ""},  // TV_ERLE_VARIANCE
+    {0x1807, ""},  // TV_FEEDBACK_EST_MIN
+    {0x1808, ""},  // TV_FEEDBACK_EST_MAX
+    {0x1809, ""},  // TV_FEEDBACK_EST_MEAN
+    {0x180A, ""},  // TV_FEEDBACK_EST_VARIANCE
+    {0x180B, ""},  // TV_NR_MIN
+    {0x180C, ""},  // TV_NR_MAX
+    {0x180D, ""},  // TV_NR_MEAN
+    {0x180E, ""},  // TV_NR_VARIANCE
+    {0x180F, ""},  // TV_MIC_AVE_MIN
+    {0x1810, ""},  // TV_MIC_AVE_MAX
+    {0x1811, ""},  // TV_MIC_AVE_MEAN
+    {0x1812, ""},  // TV_MIC_AVE_VARIANCE
+    {0x1813, ""},  // TV_LS_NOISE_MIN
+    {0x1814, ""},  // TV_LS_NOISE_MAX
+    {0x1815, ""},  // TV_LS_NOISE_MEAN
+    {0x1816, ""},  // TV_LS_NOISE_VARIANCE
+    {0x1817, ""},  // TV_MIC_NOISE_MIN
+    {0x1818, ""},  // TV_MIC_NOISE_MAX
+    {0x1819, ""},  // TV_MIC_NOISE_MEAN
+    {0x181A, ""},  // TV_MIC_NOISE_VARIANCE
 };
 
 const Diagnostics::DiagCommand kCommandsExtended[] = {
@@ -87,16 +91,19 @@ const Diagnostics::DiagCommand kCommandsExtended[] = {
     {0x5003, "RF_NOISE_DETECTION"},       // RF_NOISE_DETECTION
 };
 
-const Diagnostics::DiagCommand kCommandsMicSpk[] = {
+const Diagnostics::DiagCommand kCommandsPoll[] = {
     {kCommandMicSelected, "Mic selected"},
     {kCommandSpkSelected, "Speaker selected"},
     {kCommandSpkAudio, "Speaker audio"},
+    {kCommandHookStatus, "Hook status"},
 };
 
 // TODO(karl@limesaudio.com): Remove this when fixed in firmware
 const int64_t kDiagDelay = 10;
 
-const int kPollMicSpkStatusIntervalSeconds = 5;
+const int kPollIntervalSeconds = 5;
+
+const std::string kCallOffHook = "Offhook";
 
 // Because this is used to parse a string containing a number and trailing
 // characters, check |new_value| rather than the return value of
@@ -119,8 +126,9 @@ Diagnostics::Diagnostics()
     : commands_(kCommands, kCommands + arraysize(kCommands)),
       commands_extended_(kCommandsExtended,
                          kCommandsExtended + arraysize(kCommandsExtended)),
-      commands_micspk_(kCommandsMicSpk,
-                       kCommandsMicSpk + arraysize(kCommandsMicSpk)) {}
+      commands_poll_(kCommandsPoll, kCommandsPoll + arraysize(kCommandsPoll)),
+      commands_truevoice_(kCommandsTrueVoice,
+                          kCommandsTrueVoice + arraysize(kCommandsTrueVoice)) {}
 
 void Diagnostics::Start(const base::TimeDelta& diag_interval,
                         const base::TimeDelta& ext_diag_interval,
@@ -128,7 +136,7 @@ void Diagnostics::Start(const base::TimeDelta& diag_interval,
   if (diag_timer_.IsRunning()) {
     LOG(INFO) << "Diagnostics started while already running";
     diag_timer_.Stop();
-    micspk_timer_.Stop();
+    poll_timer_.Stop();
   }
 
   ResetSessionState();
@@ -138,10 +146,9 @@ void Diagnostics::Start(const base::TimeDelta& diag_interval,
 
   device_.set_path(device_path);
 
-  micspk_timer_.Start(
-      FROM_HERE,
-      base::TimeDelta::FromSeconds(kPollMicSpkStatusIntervalSeconds),
-      base::Bind(&Diagnostics::PollMicSpkStatus, base::Unretained(this)));
+  poll_timer_.Start(FROM_HERE,
+                    base::TimeDelta::FromSeconds(kPollIntervalSeconds),
+                    base::Bind(&Diagnostics::Poll, base::Unretained(this)));
 
   // Run a diagnostic immediately, then do it periodically
   Run();
@@ -154,8 +161,8 @@ void Diagnostics::Stop() {
   if (diag_timer_.IsRunning()) {
     diag_timer_.Stop();
   }
-  if (micspk_timer_.IsRunning()) {
-    micspk_timer_.Stop();
+  if (poll_timer_.IsRunning()) {
+    poll_timer_.Stop();
   }
 }
 
@@ -163,6 +170,12 @@ void Diagnostics::Run() {
   LOG(INFO) << "-- Report start --";
   const base::TimeTicks now = base::TimeTicks::Now();
   QueryDeviceWithCommands(commands_);
+
+  // If a call is active, log TrueVoice parameters
+  if (call_status_.find(kCallOffHook) != std::string::npos) {
+    VLOG(1) << "Internal TrueVoice parameters: ";
+    QueryDeviceWithCommands(commands_truevoice_);
+  }
 
   if (now - last_extended_diag_time_ > ext_diag_interval_) {
     last_extended_diag_time_ = now;
@@ -179,10 +192,10 @@ void Diagnostics::Run() {
   LOG(INFO) << "-- Report end --";
 }
 
-void Diagnostics::PollMicSpkStatus() {
-  for (const DiagCommand& command : commands_micspk_) {
+void Diagnostics::Poll() {
+  for (const DiagCommand& command : commands_poll_) {
     device_.Query(command.id,
-                  base::Bind(&Diagnostics::HandleMicSpkQueryResult,
+                  base::Bind(&Diagnostics::HandlePollQueryResult,
                              base::Unretained(this),
                              command.description));
     // Workaround for firmware < v0.7.0
@@ -200,7 +213,6 @@ void Diagnostics::QueryDeviceWithCommands(
     // This check is to see when the TV parameters are about to be read,
     // (starting at 0x1804) and in that case prepend the below line for more
     // readability in the log
-    VLOG_IF(1, (command.id == 0x1804)) << "Internal TrueVoice parameters: ";
     device_.Query(command.id,
                   base::Bind(&Diagnostics::HandleQueryResult,
                              base::Unretained(this),
@@ -270,10 +282,11 @@ void Diagnostics::HandleQueryResult(const std::string& cmd_desc,
   }
 }
 
-void Diagnostics::HandleMicSpkQueryResult(const std::string& cmd_desc,
-                                          QueryResult code,
-                                          const HIDMessage& request,
-                                          const HIDMessage& response) {
+void Diagnostics::HandlePollQueryResult(const std::string& cmd_desc,
+                                        QueryResult code,
+                                        const HIDMessage& request,
+                                        const HIDMessage& response) {
+  // Only log these if their values changed since the last poll.
   switch (response.command_id()) {
     case kCommandMicSelected:
       if (mic_selected_ != response.body()) {
@@ -293,6 +306,11 @@ void Diagnostics::HandleMicSpkQueryResult(const std::string& cmd_desc,
       }
       spk_silence_ = response.body();
       break;
+    case kCommandHookStatus:
+      if (call_status_ != response.body()) {
+        LogResponse(cmd_desc, response);
+      }
+      call_status_ = response.body();
   }
 }
 
@@ -324,6 +342,9 @@ void Diagnostics::ResetSessionState() {
   mic_selected_.clear();
   spk_selected_.clear();
   spk_silence_.clear();
+  // Assume that were in a call when starting up/restarting, so we always
+  // log everything on the first diagnostic report
+  call_status_ = kCallOffHook;
 }
 
 }  // namespace atrusctl

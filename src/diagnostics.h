@@ -39,17 +39,17 @@ class Diagnostics {
  private:
   void Run();
   void QueryDeviceWithCommands(const std::vector<DiagCommand>& commands);
-  void PollMicSpkStatus();
+  void Poll();
   void LogResponse(const std::string& cmd_desc, const HIDMessage& response);
   void LogQueryError(HIDRawDevice::QueryResult code, const HIDMessage& request);
   void HandleQueryResult(const std::string& cmd_desc,
                          HIDRawDevice::QueryResult code,
                          const HIDMessage& request,
                          const HIDMessage& response);
-  void HandleMicSpkQueryResult(const std::string& cmd_desc,
-                               HIDRawDevice::QueryResult code,
-                               const HIDMessage& request,
-                               const HIDMessage& response);
+  void HandlePollQueryResult(const std::string& cmd_desc,
+                             HIDRawDevice::QueryResult code,
+                             const HIDMessage& request,
+                             const HIDMessage& response);
   void UpdateUptime(int new_value);
   void UpdateNumberOfConnectedSlaves(int new_value);
   void ResetSessionState();
@@ -57,7 +57,8 @@ class Diagnostics {
 
   const std::vector<DiagCommand> commands_;
   const std::vector<DiagCommand> commands_extended_;
-  const std::vector<DiagCommand> commands_micspk_;
+  const std::vector<DiagCommand> commands_poll_;
+  const std::vector<DiagCommand> commands_truevoice_;
 
   HIDRawDevice device_;
 
@@ -84,9 +85,9 @@ class Diagnostics {
   std::string mic_selected_;
   std::string spk_selected_;
   std::string spk_silence_;
+  std::string call_status_;
 
-  base::RepeatingTimer micspk_timer_;
-  base::TimeDelta micspk_polling_interval_;
+  base::RepeatingTimer poll_timer_;
 
   DISALLOW_COPY_AND_ASSIGN(Diagnostics);
 };
