@@ -84,6 +84,7 @@ const Diagnostics::DiagCommand kCommandsExtended[] = {
     {0x1316, "VERSION_SLAVE3_DOWN"},  // VERSION_SLAVE3_DOWN
     {0x1317, "VERSION_SLAVE4_DOWN"},  // VERSION_SLAVE4_DOWN
     {0x1350, "DAISY_MIN_VERSION"},    // DAISY_MIN_VERSION
+    {0x1352, "DAISY_POWER"},          // DAISY_POWER
     {0x1700, "HW_ID"},                // HW_ID
     {0x1702, "MIC_CALIBRATION"},      // MIC_CALIBRATION
     {0x1703, "BOOT_PARTITION"},       // BOOT_PARTITION
