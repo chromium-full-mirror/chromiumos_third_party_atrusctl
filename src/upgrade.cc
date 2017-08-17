@@ -129,13 +129,24 @@ bool PerformUpgrade(const base::FilePath& upgrade_file, bool* skipped) {
     LOG(ERROR) << "The upgrade file is not intended for an Atrus device";
     return false;
   }
-  LOG(INFO) << "Upgrade file version " << UsbBcd(suffix.bcd_device).ToString();
+  std::string file_version = UsbBcd(suffix.bcd_device).ToString();
+  LOG(INFO) << "Upgrade file version " << file_version;
+
+  uint16_t bcd_device;
+  std::string dev_version = "unknown";
+  bool run_time_mode_failed = false;
 
   // Set the device in DFU mode
   UsbDfuDevice dev_run_time(kAtrusUsbVid, kAtrusUsbPid);
   if (!dev_run_time.Open()) {
     LOG(INFO) << "Could not open device in run-time mode";
+    run_time_mode_failed = true;
   } else {
+    if (dev_run_time.GetBcdDevice(&bcd_device)) {
+      dev_version = UsbBcd(bcd_device).ToString();
+    }
+    LOG(INFO) << "Current device version " << dev_version;
+
     if (DeviceVersionIsHigherOrEqualFileVersion(dev_run_time, suffix)) {
       *skipped = true;
       return true;
@@ -152,16 +163,19 @@ bool PerformUpgrade(const base::FilePath& upgrade_file, bool* skipped) {
     LOG(ERROR) << "Could not open device in DFU mode";
     return false;
   }
+  if (run_time_mode_failed) {
+    if (dev_dfu.GetBcdDevice(&bcd_device)) {
+      dev_version = UsbBcd(bcd_device).ToString();
+    }
+    LOG(INFO) << "Current device version " << dev_version;
+  }
+
   if (DeviceVersionIsHigherOrEqualFileVersion(dev_dfu, suffix)) {
     *skipped = true;
     return true;
   }
-  uint16_t bcd_device;
-  std::string dev_version = "unknown";
-  if (dev_dfu.GetBcdDevice(&bcd_device)) {
-    dev_version = UsbBcd(bcd_device).ToString();
-  }
-  LOG(INFO) << "Upgrading from device version " << dev_version;
+  LOG(INFO) << "Upgrading from device version " << dev_version << " to "
+            << file_version;
   if (!dev_dfu.DownloadFile(file_contents)) {
     return false;
   }
