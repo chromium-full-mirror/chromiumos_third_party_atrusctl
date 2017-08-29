@@ -79,8 +79,7 @@ bool ParseSuffixFromData(const std::vector<char>& data,
     return false;
   }
 
-  std::copy(data.end() - kSuffixSizeBytes,
-            data.end(),
+  std::copy(data.end() - kSuffixSizeBytes, data.end(),
             reinterpret_cast<char*>(suffix));
   // Only the DFU signature needs to be reversed
   std::reverse(std::begin(suffix->dfu_signature),
@@ -98,7 +97,9 @@ bool ParseSuffixFromData(const std::vector<char>& data,
 
 }  // namespace
 
-bool PerformUpgrade(const base::FilePath& upgrade_file, bool* skipped) {
+bool PerformUpgrade(const base::FilePath& upgrade_file,
+                    bool* skipped,
+                    bool force_upgrade) {
   *skipped = false;
   LOG(INFO) << "[Device is entering upgrade mode]";
   LOG(INFO) << "Upgrade file " << upgrade_file.value();
@@ -147,7 +148,8 @@ bool PerformUpgrade(const base::FilePath& upgrade_file, bool* skipped) {
     }
     LOG(INFO) << "Current device version " << dev_version;
 
-    if (DeviceVersionIsHigherOrEqualFileVersion(dev_run_time, suffix)) {
+    if (DeviceVersionIsHigherOrEqualFileVersion(dev_run_time, suffix) &&
+        !force_upgrade) {
       *skipped = true;
       return true;
     }
@@ -170,7 +172,8 @@ bool PerformUpgrade(const base::FilePath& upgrade_file, bool* skipped) {
     LOG(INFO) << "Current device version " << dev_version;
   }
 
-  if (DeviceVersionIsHigherOrEqualFileVersion(dev_dfu, suffix)) {
+  if (DeviceVersionIsHigherOrEqualFileVersion(dev_dfu, suffix) &&
+      !force_upgrade) {
     *skipped = true;
     return true;
   }

@@ -198,8 +198,8 @@ void UsbDfuDevice::Close() {
 bool UsbDfuDevice::Detach(uint16_t timeout) const {
   uint8_t type = LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_CLASS |
                  LIBUSB_RECIPIENT_INTERFACE;
-  int ret = UsbDevice::ControlTransfer(
-      type, kDetach, timeout, interface_, nullptr, 0);
+  int ret = UsbDevice::ControlTransfer(type, kDetach, timeout, interface_,
+                                       nullptr, 0);
   return (ret >= 0);
 }
 
@@ -208,8 +208,8 @@ bool UsbDfuDevice::Download(uint16_t block,
                             uint16_t length) const {
   uint8_t type = LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_CLASS |
                  LIBUSB_RECIPIENT_INTERFACE;
-  int ret = UsbDevice::ControlTransfer(
-      type, kDnload, block, interface_, data, length);
+  int ret = UsbDevice::ControlTransfer(type, kDnload, block, interface_, data,
+                                       length);
   return (ret >= 0);
 }
 
@@ -220,8 +220,8 @@ bool UsbDfuDevice::GetStatus(StatusRequest* status) const {
   uint8_t buf[6];
   uint8_t type = LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_CLASS |
                  LIBUSB_RECIPIENT_INTERFACE;
-  int ret = UsbDevice::ControlTransfer(
-      type, kGetStatus, 0, interface_, buf, sizeof(buf));
+  int ret = UsbDevice::ControlTransfer(type, kGetStatus, 0, interface_, buf,
+                                       sizeof(buf));
   status->status = buf[0];
   status->poll_timeout = (uint32_t)((buf[3] << 16) | (buf[2] << 8) | buf[1]);
   status->state = buf[4];
@@ -284,21 +284,16 @@ bool UsbDfuDevice::DownloadFile(const std::vector<char>& file_data) const {
   while (block_index * kBlockSize < file_data_size) {
     size_t offset = kBlockSize * block_index;
     size_t size_to_download = std::min(kBlockSize, file_data_size - offset);
-    if (!DownloadFileBlock(block_index++,
-                           reinterpret_cast<uint8_t*>(&local_file_data[offset]),
-                           size_to_download,
-                           kStateDfuDnloadIdle,
-                           &status_req.poll_timeout)) {
+    if (!DownloadFileBlock(
+            block_index++, reinterpret_cast<uint8_t*>(&local_file_data[offset]),
+            size_to_download, kStateDfuDnloadIdle, &status_req.poll_timeout)) {
       return false;
     }
   }
   // After the whole file is downloaded, issue a final download request with
   // length = 0 to inform the device of this. See section A.2.6 in the
   // specification for details.
-  if (!DownloadFileBlock(block_index,
-                         nullptr,
-                         0,
-                         kStateDfuManifest,
+  if (!DownloadFileBlock(block_index, nullptr, 0, kStateDfuManifest,
                          &status_req.poll_timeout)) {
     return false;
   }

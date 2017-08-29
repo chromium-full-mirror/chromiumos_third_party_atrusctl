@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<node name="/" xmlns:tp="http://telepathy.freedesktop.org/wiki/DbusSpec#extensio
+ns-v0">
+  <interface name="org.chromium.Atrusctl">
+    <method name="ForceFirmwareUpgrade">
+      <tp:docstring>
+          Issues a firmware upgrade on a connected Atrus device.
+      </tp:docstring>
+      <arg name="firmware_path" direction="in" type="s">
+        <tp:docstring>
+          Firmware Path (string): Path to the firmware file.
+        </tp:docstring>
+      </arg>
+      <arg name="success" direction="out" type="b">
+        <tp:docstring>
+          Success (bool): Indicates whether the firmware upgrade succeeded
+          or failed.
+        </tp:docstring>
+      </arg>
+    </method>
+    <method name="EnableDiagnostics">
+      <tp:docstring>
+          Enables diagnostics for the current Atrus device.
+      </tp:docstring>
+      <arg name="diag_interval" direction="in" type="i">
+        <tp:docstring>
+          Diagnostics Interval (int): Delay between each diagnostic report (seconds)
+        </tp:docstring>
+      </arg>
+      <arg name="ext_diag_interval" direction="in" type="i">
+        <tp:docstring>
+          Extended Diagnostics Interval (int): Delay between each extended diagnostic report (seconds)
+        </tp:docstring>
+      </arg>
+    </method>
+    <method name="DisableDiagnostics">
+      <tp:docstring>
+          Disables diagnostics for the current Atrus device.
+      </tp:docstring>
+    </method>
+  </interface>
+</node>

@@ -16,9 +16,6 @@
 
 namespace atrusctl {
 
-// TODO(karl@limesaudio.com): Handle user connecting multiple atrus devices.
-// currently, this will cause two callbacks to be called, and upgrade/diag
-// run for both devices, but this is not supported.
 class UdevDeviceManager : public base::MessageLoopForIO::Watcher {
  public:
   UdevDeviceManager();

@@ -137,6 +137,10 @@ Diagnostics::Diagnostics()
       commands_truevoice_(kCommandsTrueVoice,
                           kCommandsTrueVoice + arraysize(kCommandsTrueVoice)) {}
 
+Diagnostics::~Diagnostics() {
+  Stop();
+}
+
 void Diagnostics::Start(const base::TimeDelta& diag_interval,
                         const base::TimeDelta& ext_diag_interval,
                         const std::string& device_path) {
@@ -159,8 +163,7 @@ void Diagnostics::Start(const base::TimeDelta& diag_interval,
 
   // Run a diagnostic immediately, then do it periodically
   Run();
-  diag_timer_.Start(FROM_HERE,
-                    diag_interval,
+  diag_timer_.Start(FROM_HERE, diag_interval,
                     base::Bind(&Diagnostics::Run, base::Unretained(this)));
 }
 
@@ -203,8 +206,7 @@ void Diagnostics::Poll() {
   for (const DiagCommand& command : commands_poll_) {
     device_.Query(command.id,
                   base::Bind(&Diagnostics::HandlePollQueryResult,
-                             base::Unretained(this),
-                             command.description));
+                             base::Unretained(this), command.description));
     // Workaround for firmware < v0.7.0
     // TODO(karl@limesaudio.com): Remove this when fixed in firmware
     // TODO(karl@limesaudio.com) Update: Due to issues with USB performance
@@ -222,8 +224,7 @@ void Diagnostics::QueryDeviceWithCommands(
     // readability in the log
     device_.Query(command.id,
                   base::Bind(&Diagnostics::HandleQueryResult,
-                             base::Unretained(this),
-                             command.description));
+                             base::Unretained(this), command.description));
     // Workaround for firmware < v0.7.0
     // TODO(karl@limesaudio.com): Remove this when fixed in firmware
     // TODO(karl@limesaudio.com) Update: Due to issues with USB performance

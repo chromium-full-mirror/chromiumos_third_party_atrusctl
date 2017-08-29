@@ -9,15 +9,14 @@
 #include <base/logging.h>
 #include <base/macros.h>
 #include <base/run_loop.h>
-#include <base/strings/string_number_conversions.h>
 #include <brillo/daemons/daemon.h>
+#include <brillo/daemons/dbus_daemon.h>
 #include <brillo/flag_helper.h>
 #include <brillo/syslog_logging.h>
 
-#include "atrus_device.h"
-#include "diagnostics.h"
+#include "atrus_controller.h"
+#include "dbus_adaptor.h"
 #include "udev_device_manager.h"
-#include "upgrade.h"
 #include "util.h"
 
 namespace {
@@ -28,14 +27,11 @@ const char kDaemonName[] = "atrusd";
 
 namespace atrusctl {
 
-class Atrusd : public brillo::Daemon, public UdevSubsystemObserver {
+class Atrusd : public brillo::DBusServiceDaemon {
  public:
-  Atrusd(const base::FilePath& firmware_path,
-         const base::TimeDelta& diag_interval,
-         const base::TimeDelta& ext_diag_interval)
-      : firmware_path_(firmware_path),
-        diag_interval_(diag_interval),
-        ext_diag_interval_(ext_diag_interval) {}
+  Atrusd(const base::FilePath& firmware_path)
+      : DBusServiceDaemon(kAtrusctlName, dbus::ObjectPath(kAtrusctlObjectPath)),
+        controller_(new AtrusController(firmware_path)) {}
 
  private:
   // brillo::Daemon
@@ -47,72 +43,33 @@ class Atrusd : public brillo::Daemon, public UdevSubsystemObserver {
       return 1;
     }
 
-    device_manager_.AddObserver(this);
+    device_manager_.AddObserver(controller_.get());
 
     // Enumerate in case an Atrus device was connected before we started
     device_manager_.Enumerate();
 
-    return brillo::Daemon::OnInit();
+    return brillo::DBusServiceDaemon::OnInit();
   }
 
   // brillo::Daemon
-  void OnShutdown(int* exit_code) override { DisableDiagnostics(); }
+  void OnShutdown(int* exit_code) override {
+    LOG(INFO) << "Exiting " << kDaemonName;
 
-  // UdevSubsystemObserver
-  void OnDeviceAdded(const std::string& device_path) override {
-    diagnostics_.UpdateNumberOfDevices(++device_counter_);
-    if (!current_device_path_.empty()) {
-      LOG(INFO) << "Device " << device_path
-                << " added, but it's ignored in favor of "
-                << current_device_path_;
-      return;
-    } else {
-      LOG(INFO) << "Atrus device added";
-    }
-    current_device_path_ = device_path;
-
-    bool skipped;
-    bool ret = PerformUpgrade(firmware_path_, &skipped);
-    LOG(INFO) << "Upgrade "
-              << (ret ? (skipped ? "skipped" : "succeeded") : "failed");
-    LOG(INFO) << "[Device is entering usage mode]";
-
-    EnableDiagnostics(device_path);
+    device_manager_.RemoveObserver(controller_.get());
+    dbus_adaptor_.reset();
+    brillo::DBusServiceDaemon::OnShutdown(exit_code);
   }
 
-  // UdevSubsystemObserver
-  void OnDeviceRemoved(const std::string& device_path) override {
-    diagnostics_.UpdateNumberOfDevices(--device_counter_);
-    if (device_path != current_device_path_) {
-      return;
-    }
-    LOG(INFO) << "Atrus device removed";
-    DisableDiagnostics();
-    current_device_path_.clear();
-    LOG(INFO) << "(" << diagnostics_.number_of_connected_slaves() << ")"
-              << " daisy-chained devices disconnected as a result";
-  }
-
-  void EnableDiagnostics(const std::string& device_path) {
-    LOG(INFO) << "Polling diagnostics every " << diag_interval_;
-    VLOG(1) << "Diagnostics specification can be found here: go/atrus-diag";
-
-    diagnostics_.Start(diag_interval_, ext_diag_interval_, device_path);
-  }
-
-  void DisableDiagnostics() {
-    LOG(INFO) << "Diagnostics disabled";
-
-    diagnostics_.Stop();
+  // brillo::DBusServiceDaemon
+  void RegisterDBusObjectsAsync(
+      brillo::dbus_utils::AsyncEventSequencer* sequencer) override {
+    dbus_adaptor_.reset(new DBusAdaptor(controller_.get()));
+    dbus_adaptor_->RegisterAsync(object_manager_.get(), sequencer);
   }
 
   UdevDeviceManager device_manager_;
-  Diagnostics diagnostics_;
-  base::FilePath firmware_path_;
-  base::TimeDelta diag_interval_;
-  base::TimeDelta ext_diag_interval_;
-  std::string current_device_path_;
-  int device_counter_ = 0;
+  std::unique_ptr<DBusAdaptor> dbus_adaptor_;
+  std::unique_ptr<AtrusController> controller_;
 
   DISALLOW_COPY_AND_ASSIGN(Atrusd);
 };
@@ -121,28 +78,13 @@ class Atrusd : public brillo::Daemon, public UdevSubsystemObserver {
 
 int main(int argc, char* argv[]) {
   DEFINE_string(upgrade_file_path, "", "Path to firmware upgrade file");
-  DEFINE_string(diag_interval, "60", "Polling interval for diagnostics (s)");
-  DEFINE_string(ext_diag_interval,
-                "1800",
-                "Polling interval for extended diagnostics (s)");
 
   brillo::FlagHelper::Init(argc, argv, kDaemonName);
   CHECK(!FLAGS_upgrade_file_path.empty()) << "--upgrade_file_path is required";
 
   brillo::InitLog(brillo::InitFlags::kLogToSyslog);
 
-  unsigned int diag_interval_s = 0, ext_diag_interval_s = 0;
-  base::StringToUint(FLAGS_diag_interval, &diag_interval_s);
-  base::StringToUint(FLAGS_ext_diag_interval, &ext_diag_interval_s);
-  if (diag_interval_s == 0 || ext_diag_interval_s == 0) {
-    LOG(WARNING) << "diag_interval and ext_diag_interval needs to be an "
-                 << "integer larger than 0";
-    return EX_USAGE;
-  }
-
-  atrusctl::Atrusd atrusd(base::FilePath(FLAGS_upgrade_file_path),
-                          base::TimeDelta::FromSeconds(diag_interval_s),
-                          base::TimeDelta::FromSeconds(ext_diag_interval_s));
+  atrusctl::Atrusd atrusd((base::FilePath(FLAGS_upgrade_file_path)));
 
   return atrusd.Run();
 }

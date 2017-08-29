@@ -9,7 +9,9 @@
 
 namespace atrusctl {
 
-bool PerformUpgrade(const base::FilePath& upgrade_file, bool* skipped);
+bool PerformUpgrade(const base::FilePath& upgrade_file,
+                    bool* skipped,
+                    bool force_upgrade = false);
 
 }  // namespace atrusctl
 

@@ -11,10 +11,26 @@
   },
   'targets': [
     {
+      'target_name': 'atrusd-adaptors',
+      'type': 'none',
+      'variables': {
+        'dbus_adaptors_out_dir': 'include/atrusctl/dbus_adaptors',
+      },
+      'sources': [
+        'dbus_bindings/org.chromium.Atrusctl.xml',
+      ],
+      'includes': ['../../platform2/common-mk/generate-dbus-adaptors.gypi'],
+    },
+    {
       'target_name': 'atrusd',
       'type': 'executable',
+      'dependencies': [
+        'atrusd-adaptors',
+      ],
       'sources': [
         'src/atrusd.cc',
+        'src/atrus_controller.cc',
+        'src/dbus_adaptor.cc',
         'src/diagnostics.cc',
         'src/hid_connection.cc',
         'src/hid_message.cc',

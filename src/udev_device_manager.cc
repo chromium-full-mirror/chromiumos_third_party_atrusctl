@@ -108,8 +108,8 @@ bool UdevDeviceManager::Initialize() {
     return false;
   }
 
-  VLOG(2) << base::StringPrintf(
-      "Watching FD %d for udev events with tag: %s", fd, kAtrusTag);
+  VLOG(2) << base::StringPrintf("Watching FD %d for udev events with tag: %s",
+                                fd, kAtrusTag);
 
   return true;
 }
@@ -172,8 +172,7 @@ void UdevDeviceManager::OnFileCanReadWithoutBlocking(int fd) {
   const char* action_str = udev_device_get_action(device.get());
 
   VLOG(1) << base::StringPrintf(
-      "Received event: dev_node_path=%s action_str=%s",
-      dev_node_path,
+      "Received event: dev_node_path=%s action_str=%s", dev_node_path,
       action_str);
 
   HandleEvent(action_str, dev_node_path);
@@ -188,12 +187,12 @@ void UdevDeviceManager::HandleEvent(const std::string& action_str,
   UdevAction action = StringToAction(action_str);
   switch (action) {
     case UdevAction::kAdd:
-      FOR_EACH_OBSERVER(
-          UdevSubsystemObserver, observers_, OnDeviceAdded(device_path));
+      FOR_EACH_OBSERVER(UdevSubsystemObserver, observers_,
+                        OnDeviceAdded(device_path));
       break;
     case UdevAction::kRemove:
-      FOR_EACH_OBSERVER(
-          UdevSubsystemObserver, observers_, OnDeviceRemoved(device_path));
+      FOR_EACH_OBSERVER(UdevSubsystemObserver, observers_,
+                        OnDeviceRemoved(device_path));
       break;
     default:
       VLOG(1) << "Unhandled udev event received for tag '" << kAtrusTag

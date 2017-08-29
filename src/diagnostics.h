@@ -25,6 +25,7 @@ class Diagnostics {
   };
 
   Diagnostics();
+  ~Diagnostics();
 
   void Start(const base::TimeDelta& diag_interval,
              const base::TimeDelta& ext_diag_interval,

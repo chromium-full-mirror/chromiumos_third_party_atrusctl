@@ -21,8 +21,7 @@ HIDMessage::HIDMessage(uint8_t report_id, uint16_t command_id)
 bool HIDMessage::PackIntoBuffer(std::vector<uint8_t>* buffer) const {
   CHECK(buffer);
 
-  *buffer = {report_id_,
-             static_cast<uint8_t>(command_id_),
+  *buffer = {report_id_, static_cast<uint8_t>(command_id_),
              static_cast<uint8_t>(command_id_ >> 8)};
 
   return true;

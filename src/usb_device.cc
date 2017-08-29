@@ -144,23 +144,14 @@ int UsbDevice::ControlTransfer(uint8_t request_type,
                                uint16_t index,
                                unsigned char* data,
                                uint16_t length) const {
-  int ret = libusb_control_transfer(handle_,
-                                    request_type,
-                                    request,
-                                    value,
-                                    index,
-                                    data,
-                                    length,
-                                    kControlTransferTimeoutMs);
+  int ret =
+      libusb_control_transfer(handle_, request_type, request, value, index,
+                              data, length, kControlTransferTimeoutMs);
   if (ret < 0) {
     std::string params = base::StringPrintf(
         "[bmRequestType=0x%X, bRequest=0x%X, wValue=0x%X, wIndex=0x%X, "
         "wLength=0x%X]",
-        request_type,
-        request,
-        value,
-        index,
-        length);
+        request_type, request, value, index, length);
     LOG(ERROR) << "Could not perform control transfer " << params << ": "
                << UsbError(ret);
   }
@@ -182,9 +173,7 @@ bool UsbDevice::GetStringDescriptor(uint8_t index, std::string* str) const {
   const int kMaxStringSizeBytes = 256;
   std::vector<char> buffer(kMaxStringSizeBytes);
   int ret = libusb_get_string_descriptor_ascii(
-      handle_,
-      index,
-      reinterpret_cast<unsigned char*>(buffer.data()),
+      handle_, index, reinterpret_cast<unsigned char*>(buffer.data()),
       kMaxStringSizeBytes);
   if (ret >= 0) {
     *str = std::string(buffer.data());
