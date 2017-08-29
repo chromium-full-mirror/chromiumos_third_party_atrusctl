@@ -22,29 +22,29 @@ namespace {
 
 using QueryResult = HIDRawDevice::QueryResult;
 
-const uint16_t kCommandStateUptime = 0x1604;
 const uint16_t kCommandDaisySlaves = 0x1351;
+const uint16_t kCommandDfuStatus = 0x1500;
+const uint16_t kCommandHookStatus = 0x1601;
+const uint16_t kCommandStateUptime = 0x1604;
 const uint16_t kCommandMicSelected = 0x1706;
 const uint16_t kCommandSpkSelected = 0x1707;
 const uint16_t kCommandSpkAudio = 0x1708;
-const uint16_t kCommandHookStatus = 0x1601;
-const uint16_t kCommandDfuStatus = 0x1500;
 
 const Diagnostics::DiagCommand kCommands[] = {
-    {kCommandStateUptime, "Device uptime seconds"},       // STATE_UPTIME
     {kCommandDaisySlaves, "Number of connected slaves"},  // DAISY_NUM_SLAVES
     {kCommandDfuStatus, "DFU status"},                    // DAISY_DFU_STATUS
     {0x1600, "Mute status"},                              // STATE_MUTED
     {kCommandHookStatus, "Hook status"},                  // STATE_HOOK_OFF
     {0x1602, "Volume"},                                   // STATE_VOLUME
     {0x1603, "LED status"},                               // STATE_LED
+    {kCommandStateUptime, "Device uptime seconds"},       // STATE_UPTIME
     {0x1605, "SHARC status"},                             // STATE_SHARC_ALIVE
-    {0x5000, "Touch register status"},  // TOUCH_REGISTER_STATUS
-    {0x5001, "SPI queue status"},       // SPI_QUEUE_STATUS
-    {0x5004, "Button presses"},         // NR_BUTTON_PRESSES
     {kCommandMicSelected, "Mic selected"},
     {kCommandSpkSelected, "Speaker selected"},
     {kCommandSpkAudio, "Speaker audio"},
+    {0x5000, "Touch register status"},  // TOUCH_REGISTER_STATUS
+    {0x5001, "SPI queue status"},       // SPI_QUEUE_STATUS
+    {0x5004, "Button presses"},         // NR_BUTTON_PRESSES
 };
 
 const Diagnostics::DiagCommand kCommandsTrueVoice[] = {
@@ -94,12 +94,12 @@ const Diagnostics::DiagCommand kCommandsExtended[] = {
 };
 
 const Diagnostics::DiagCommand kCommandsPoll[] = {
+    {kCommandDaisySlaves, "Number of connected slaves"},
+    {kCommandDfuStatus, "DFU status"},
+    {kCommandHookStatus, "Hook status"},
     {kCommandMicSelected, "Mic selected"},
     {kCommandSpkSelected, "Speaker selected"},
     {kCommandSpkAudio, "Speaker audio"},
-    {kCommandHookStatus, "Hook status"},
-    {kCommandDaisySlaves, "Number of connected slaves"},
-    {kCommandDfuStatus, "DFU status"},
 };
 
 // TODO(karl@limesaudio.com): Remove this when fixed in firmware
@@ -107,7 +107,10 @@ const int64_t kDiagDelay = 10;
 
 const int kPollIntervalSeconds = 5;
 
-const std::string kCallOffHook = "Offhook";
+// Expected response when querying an Atrus device with the command
+// |kCommandHookStatus| is either "Offhook" or "Onhook". We check for this
+// string and assume the status is "Onhook" if the condition is false.
+const char kCallOffHook[] = "Offhook";
 
 // Because this is used to parse a string containing a number and trailing
 // characters, check |new_value| rather than the return value of
