@@ -6,6 +6,7 @@
 #define DIAGNOSTICS_H_
 
 #include <cstdint>
+#include <map>
 #include <vector>
 
 #include <base/macros.h>
@@ -17,10 +18,17 @@
 
 namespace atrusctl {
 
+enum DiagCommandType {
+  kCommandTypeExtended,
+  kCommandTypePoll,
+  kCommandTypeTruevoice,
+};
+
 class Diagnostics {
  public:
   struct DiagCommand {
     uint16_t id;
+    DiagCommandType type;
     const char* description;
   };
 
@@ -39,17 +47,21 @@ class Diagnostics {
 
  private:
   void Run();
+  void Poll(const std::vector<DiagCommand>& commands);
   void QueryDeviceWithCommands(const std::vector<DiagCommand>& commands);
-  void Poll();
   void LogResponse(const std::string& cmd_desc, const HIDMessage& response);
   void LogQueryError(HIDRawDevice::QueryResult code, const HIDMessage& request);
-  void HandleQueryResult(const std::string& cmd_desc,
+  void HandleQueryResult(const DiagCommand& command,
                          HIDRawDevice::QueryResult code,
                          const HIDMessage& request,
                          const HIDMessage& response);
-  void HandlePollQueryResult(const std::string& cmd_desc,
+  // Store the value from a diagnostic response and update internal state if
+  // |number_of_connected_slaves_| or |uptime_| changed
+  void HandlePollQueryResult(const DiagCommand& command,
                              HIDRawDevice::QueryResult code,
                              const HIDMessage& request,
+                             const HIDMessage& response);
+  bool StoreDiagnosticResult(const DiagCommand& command,
                              const HIDMessage& response);
   void UpdateUptime(int new_value);
   // Returns true if |number_of_connected_slaves_| was set to |new_value|
@@ -57,9 +69,8 @@ class Diagnostics {
   void ResetSessionState();
   bool SessionStateHasChanged() const;
 
-  const std::vector<DiagCommand> commands_;
-  const std::vector<DiagCommand> commands_extended_;
   const std::vector<DiagCommand> commands_poll_;
+  const std::vector<DiagCommand> commands_extended_;
   const std::vector<DiagCommand> commands_truevoice_;
 
   HIDRawDevice device_;
@@ -85,16 +96,11 @@ class Diagnostics {
   int number_of_connected_devices_ = 0;
   int number_of_connected_slaves_ = 0;
 
-  // State that is polled more often from the device. When a change in these
-  // values is detected, the updated value is written to syslog along with its
-  // command ID
-  std::string mic_selected_;
-  std::string spk_selected_;
-  std::string spk_silence_;
-  std::string call_status_;
-  std::string dfu_status_;
-
   base::RepeatingTimer poll_timer_;
+
+  // Stores the latest values of some diagnostics. When a change in these
+  // values is detected, the updated value is written to syslog.
+  std::map<uint16_t, std::string> diagnostic_values_;
 
   DISALLOW_COPY_AND_ASSIGN(Diagnostics);
 };

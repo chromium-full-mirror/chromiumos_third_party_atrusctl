@@ -22,7 +22,8 @@ class HIDRawDevice {
     kQueryError,
     kQuerySuccess,
     kQueryTimeout,
-    kQueryUnknownResponse
+    kQueryUnknownResponse,
+    kQueryNotValid,
   };
 
   HIDRawDevice();

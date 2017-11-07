@@ -86,6 +86,10 @@ HIDRawDevice::QueryResult HIDRawDevice::ExecuteQuery(
       return kQueryError;
     }
 
+    if (response->command_id() == 0x7FF0) {
+      return kQueryNotValid;
+    }
+
     // Check if response header matches request
     if (response->Validate(request)) {
       return kQuerySuccess;

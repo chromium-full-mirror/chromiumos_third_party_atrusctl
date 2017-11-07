@@ -4,6 +4,7 @@
 
 #include "diagnostics.h"
 
+#include <functional>
 #include <string>
 
 #include <base/bind.h>
@@ -23,85 +24,87 @@ namespace {
 using QueryResult = HIDRawDevice::QueryResult;
 
 const uint16_t kCommandDaisySlaves = 0x1351;
-const uint16_t kCommandDfuStatus = 0x1500;
 const uint16_t kCommandHookStatus = 0x1601;
 const uint16_t kCommandStateUptime = 0x1604;
-const uint16_t kCommandMicSelected = 0x1706;
-const uint16_t kCommandSpkSelected = 0x1707;
-const uint16_t kCommandSpkAudio = 0x1708;
 
 const Diagnostics::DiagCommand kCommands[] = {
-    {kCommandDaisySlaves, "Number of connected slaves"},  // DAISY_NUM_SLAVES
-    {kCommandDfuStatus, "DFU status"},                    // DAISY_DFU_STATUS
-    {0x1600, "Mute status"},                              // STATE_MUTED
-    {kCommandHookStatus, "Hook status"},                  // STATE_HOOK_OFF
-    {0x1602, "Volume"},                                   // STATE_VOLUME
-    {0x1603, "LED status"},                               // STATE_LED
-    {kCommandStateUptime, "Device uptime seconds"},       // STATE_UPTIME
-    {0x1605, "SHARC status"},                             // STATE_SHARC_ALIVE
-    {kCommandMicSelected, "Mic selected"},
-    {kCommandSpkSelected, "Speaker selected"},
-    {kCommandSpkAudio, "Speaker audio"},
-    {0x1709, "Number of detected ASRC mem errors"},  // ASRC_FIFO_MEM_ERRORS
-    {0x170A, "Maximum ASRC mem error size"},         // ASRC_FIFO_ERROR_SIZE
-    {0x5000, "Touch register status"},               // TOUCH_REGISTER_STATUS
-    {0x5001, "SPI queue status"},                    // SPI_QUEUE_STATUS
-    {0x5004, "Button presses"},                      // NR_BUTTON_PRESSES
-};
+    {0x1300, kCommandTypeExtended, "VERSION_MASTER"},     // VERSION_MASTER
+    {0x1310, kCommandTypeExtended, "VERSION_SLAVE1_UP"},  // VERSION_SLAVE1_UP
+    {0x1311, kCommandTypeExtended, "VERSION_SLAVE2_UP"},  // VERSION_SLAVE2_UP
+    {0x1312, kCommandTypeExtended, "VERSION_SLAVE3_UP"},  // VERSION_SLAVE3_UP
+    {0x1313, kCommandTypeExtended, "VERSION_SLAVE4_UP"},  // VERSION_SLAVE4_UP
+    {0x1314, kCommandTypeExtended,
+     "VERSION_SLAVE1_DOWN"},  // VERSION_SLAVE1_DOWN
+    {0x1315, kCommandTypeExtended,
+     "VERSION_SLAVE2_DOWN"},  // VERSION_SLAVE2_DOWN
+    {0x1316, kCommandTypeExtended,
+     "VERSION_SLAVE3_DOWN"},  // VERSION_SLAVE3_DOWN
+    {0x1317, kCommandTypeExtended,
+     "VERSION_SLAVE4_DOWN"},                              // VERSION_SLAVE4_DOWN
+    {0x1350, kCommandTypeExtended, "DAISY_MIN_VERSION"},  // DAISY_MIN_VERSION
+    {kCommandDaisySlaves, kCommandTypePoll,
+     "Number of connected slaves"},             // DAISY_NUM_SLAVES
+    {0x1352, kCommandTypePoll, "Daisy power"},  // DAISY_POWER
+    {0x1500, kCommandTypePoll, "DFU status"},
+    {0x1600, kCommandTypePoll, "Mute status"},
+    {kCommandHookStatus, kCommandTypePoll, "Hook status"},
+    {0x1602, kCommandTypePoll, "Volume"},      // STATE_VOLUME
+    {0x1603, kCommandTypePoll, "LED status"},  // STATE_LED
+    {kCommandStateUptime, kCommandTypeExtended,
+     "Device uptime seconds"},                   // STATE_UPTIME
+    {0x1605, kCommandTypePoll, "SHARC status"},  // STATE_SHARC_ALIVE
+    {0x1700, kCommandTypeExtended, "HW_ID"},
+    {0x1702, kCommandTypeExtended, "MIC_CALIBRATION"},        // MIC_CALIBRATION
+    {0x1703, kCommandTypeExtended, "Active boot partition"},  // BOOT_PARTITION
+    {0x1704, kCommandTypeExtended, "FGPA firmware version"},  // FGPA_FIRMWARE
+    {0x1706, kCommandTypePoll, "Mic selected"},
+    {0x1707, kCommandTypePoll, "Speaker selected"},
+    {0x1708, kCommandTypePoll, "Speaker audio"},
+    {0x1709, kCommandTypePoll,
+     "Number of detected ASRC mem errors"},  // ASRC_FIFO_MEM_ERRORS
+    {0x170A, kCommandTypePoll,
+     "Maximum ASRC mem error size"},                 // ASRC_FIFO_ERROR_SIZE
+    {0x5001, kCommandTypePoll, "SPI queue status"},  // SPI_QUEUE_STATUS
+    {0x5002, kCommandTypePoll,
+     "Touchpad status"},  // TOUCH_ANALOG_CALIBRATION_STATUS
+    {0x5004, kCommandTypePoll, "Button presses"},  // NR_BUTTON_PRESSES
 
-const Diagnostics::DiagCommand kCommandsTrueVoice[] = {
-    {0x1804, ""},  // TV_ERLE_MAX
-    {0x1805, ""},  // TV_ERLE_MEAN
-    {0x1806, ""},  // TV_ERLE_VARIANCE
-    {0x1807, ""},  // TV_FEEDBACK_EST_MIN
-    {0x1808, ""},  // TV_FEEDBACK_EST_MAX
-    {0x1809, ""},  // TV_FEEDBACK_EST_MEAN
-    {0x180A, ""},  // TV_FEEDBACK_EST_VARIANCE
-    {0x180B, ""},  // TV_NR_MIN
-    {0x180C, ""},  // TV_NR_MAX
-    {0x180D, ""},  // TV_NR_MEAN
-    {0x180E, ""},  // TV_NR_VARIANCE
-    {0x180F, ""},  // TV_MIC_AVE_MIN
-    {0x1810, ""},  // TV_MIC_AVE_MAX
-    {0x1811, ""},  // TV_MIC_AVE_MEAN
-    {0x1812, ""},  // TV_MIC_AVE_VARIANCE
-    {0x1813, ""},  // TV_LS_NOISE_MIN
-    {0x1814, ""},  // TV_LS_NOISE_MAX
-    {0x1815, ""},  // TV_LS_NOISE_MEAN
-    {0x1816, ""},  // TV_LS_NOISE_VARIANCE
-    {0x1817, ""},  // TV_MIC_NOISE_MIN
-    {0x1818, ""},  // TV_MIC_NOISE_MAX
-    {0x1819, ""},  // TV_MIC_NOISE_MEAN
-    {0x181A, ""},  // TV_MIC_NOISE_VARIANCE
-};
+    // Truevoice commands
+    {0x1800, kCommandTypeTruevoice, ""},  // TV_MIC_SELECTION
+    {0x1801, kCommandTypeTruevoice, ""},  // TV_ERLE_MIN
+    {0x1804, kCommandTypeTruevoice, ""},  // TV_ERLE_MAX
+    {0x1805, kCommandTypeTruevoice, ""},  // TV_ERLE_MEAN
+    {0x1807, kCommandTypeTruevoice, ""},  // TV_FEEDBACK_EST_MIN
+    {0x1808, kCommandTypeTruevoice, ""},  // TV_FEEDBACK_EST_MAX
+    {0x1809, kCommandTypeTruevoice, ""},  // TV_FEEDBACK_EST_MEAN
+    {0x180B, kCommandTypeTruevoice, ""},  // TV_NR_MIN
+    {0x180C, kCommandTypeTruevoice, ""},  // TV_NR_MAX
+    {0x180D, kCommandTypeTruevoice, ""},  // TV_NR_MEAN
+    {0x180F, kCommandTypeTruevoice, ""},  // TV_MIC_AVE_MIN
+    {0x1810, kCommandTypeTruevoice, ""},  // TV_MIC_AVE_MAX
+    {0x1811, kCommandTypeTruevoice, ""},  // TV_MIC_AVE_MEAN
+    {0x1813, kCommandTypeTruevoice, ""},  // TV_LS_NOISE_MIN
+    {0x1814, kCommandTypeTruevoice, ""},  // TV_LS_NOISE_MAX
+    {0x1815, kCommandTypeTruevoice, ""},  // TV_LS_NOISE_MEAN
+    {0x1817, kCommandTypeTruevoice, ""},  // TV_MIC_NOISE_MIN
+    {0x1818, kCommandTypeTruevoice, ""},  // TV_MIC_NOISE_MAX
+    {0x1819, kCommandTypeTruevoice, ""},  // TV_MIC_NOISE_MEAN
+    {0x181B, kCommandTypeTruevoice, ""},  // TV_GAMMA_MIN
+    {0x181C, kCommandTypeTruevoice, ""},  // TV_GAMMA_MAX
+    {0x181D, kCommandTypeTruevoice, ""},  // TV_GAMMA_MEAN
+    {0x181F, kCommandTypeTruevoice, ""},  // TV_LS_MIN
+    {0x1820, kCommandTypeTruevoice, ""},  // TV_LS_MAX
+    {0x1821, kCommandTypeTruevoice, ""},  // TV_LS_MEAN
+    {0x1823, kCommandTypeTruevoice, ""},  // TV_TX_MIN
+    {0x1824, kCommandTypeTruevoice, ""},  // TV_TX_MAX
+    {0x1825, kCommandTypeTruevoice, ""},  // TV_TX_MEAN
+    {0x1827, kCommandTypeTruevoice, ""},  // TV_TX_AGC_MIN
+    {0x1828, kCommandTypeTruevoice, ""},  // TV_TX_AGC_MAX
+    {0x1829, kCommandTypeTruevoice, ""},  // TV_TX_AGC_MEAN
+    {0x182B, kCommandTypeTruevoice, ""},  // TV_TX_LIMITER_MIN
+    {0x182C, kCommandTypeTruevoice, ""},  // TV_TX_LIMITER_MAX
+    {0x182D, kCommandTypeTruevoice, ""},  // TV_TX_LIMITER_MEAN
 
-const Diagnostics::DiagCommand kCommandsExtended[] = {
-    {0x1300, "VERSION_MASTER"},       // VERSION_MASTER
-    {0x1310, "VERSION_SLAVE1_UP"},    // VERSION_SLAVE1_UP
-    {0x1311, "VERSION_SLAVE2_UP"},    // VERSION_SLAVE2_UP
-    {0x1312, "VERSION_SLAVE3_UP"},    // VERSION_SLAVE3_UP
-    {0x1313, "VERSION_SLAVE4_UP"},    // VERSION_SLAVE4_UP
-    {0x1314, "VERSION_SLAVE1_DOWN"},  // VERSION_SLAVE1_DOWN
-    {0x1315, "VERSION_SLAVE2_DOWN"},  // VERSION_SLAVE2_DOWN
-    {0x1316, "VERSION_SLAVE3_DOWN"},  // VERSION_SLAVE3_DOWN
-    {0x1317, "VERSION_SLAVE4_DOWN"},  // VERSION_SLAVE4_DOWN
-    {0x1350, "DAISY_MIN_VERSION"},    // DAISY_MIN_VERSION
-    {0x1352, "DAISY_POWER"},          // DAISY_POWER
-    {0x1700, "HW_ID"},                // HW_ID
-    {0x1702, "MIC_CALIBRATION"},      // MIC_CALIBRATION
-    {0x1703, "BOOT_PARTITION"},       // BOOT_PARTITION
-    {0x5002,
-     "TOUCH_ANALOG_CALIBRATION_STATUS"},  // TOUCH_ANALOG_CALIBRATION_STATUS
-    {0x5003, "RF_NOISE_DETECTION"},       // RF_NOISE_DETECTION
-};
-
-const Diagnostics::DiagCommand kCommandsPoll[] = {
-    {kCommandDaisySlaves, "Number of connected slaves"},
-    {kCommandDfuStatus, "DFU status"},
-    {kCommandHookStatus, "Hook status"},
-    {kCommandMicSelected, "Mic selected"},
-    {kCommandSpkSelected, "Speaker selected"},
-    {kCommandSpkAudio, "Speaker audio"},
 };
 
 // TODO(karl@limesaudio.com): Remove this when fixed in firmware
@@ -129,15 +132,31 @@ bool ParseIntFromResponseBody(const std::string& str, int* val) {
   return true;
 }
 
+// Helper function for extracting commands of a specific type from
+// |kCommands|.
+std::vector<Diagnostics::DiagCommand> GetDiagCommandsSubset(
+    std::function<bool(const Diagnostics::DiagCommand&)> cmpFn) {
+  std::vector<Diagnostics::DiagCommand> vec;
+  std::copy_if(std::begin(kCommands), std::end(kCommands),
+               std::back_inserter(vec), cmpFn);
+  return vec;
+}
+
 }  // namespace
 
 Diagnostics::Diagnostics()
-    : commands_(kCommands, kCommands + arraysize(kCommands)),
-      commands_extended_(kCommandsExtended,
-                         kCommandsExtended + arraysize(kCommandsExtended)),
-      commands_poll_(kCommandsPoll, kCommandsPoll + arraysize(kCommandsPoll)),
-      commands_truevoice_(kCommandsTrueVoice,
-                          kCommandsTrueVoice + arraysize(kCommandsTrueVoice)) {}
+    : commands_poll_(GetDiagCommandsSubset([](const DiagCommand& cmd) {
+        return (cmd.type == kCommandTypePoll);
+      })),
+      commands_extended_(GetDiagCommandsSubset([](const DiagCommand& cmd) {
+        return (cmd.type == kCommandTypeExtended) ||
+               (cmd.type == kCommandTypePoll);
+      })),
+      commands_truevoice_(GetDiagCommandsSubset([](const DiagCommand& cmd) {
+        return (cmd.type == kCommandTypeTruevoice);
+      })) {
+  ResetSessionState();
+}
 
 Diagnostics::~Diagnostics() {
   Stop();
@@ -159,14 +178,17 @@ void Diagnostics::Start(const base::TimeDelta& diag_interval,
 
   device_.set_path(device_path);
 
-  poll_timer_.Start(FROM_HERE,
-                    base::TimeDelta::FromSeconds(kPollIntervalSeconds),
-                    base::Bind(&Diagnostics::Poll, base::Unretained(this)));
+  poll_timer_.Start(
+      FROM_HERE, base::TimeDelta::FromSeconds(kPollIntervalSeconds),
+      base::Bind(&Diagnostics::Poll, base::Unretained(this), commands_poll_));
 
   // Run a diagnostic immediately, then do it periodically
   Run();
   diag_timer_.Start(FROM_HERE, diag_interval,
                     base::Bind(&Diagnostics::Run, base::Unretained(this)));
+
+  // TODO(karlpeterson@google.com): fetch all truevoice parameters on start
+  // to reset internal state
 }
 
 void Diagnostics::Stop() {
@@ -179,12 +201,11 @@ void Diagnostics::Stop() {
 }
 
 void Diagnostics::Run() {
-  LOG(INFO) << "-- Report start --";
   const base::TimeTicks now = base::TimeTicks::Now();
-  QueryDeviceWithCommands(commands_);
 
   // If a call is active, log TrueVoice parameters
-  if (call_status_.find(kCallOffHook) != std::string::npos) {
+  if (diagnostic_values_[kCommandHookStatus].find(kCallOffHook) !=
+      std::string::npos) {
     VLOG(1) << "Internal TrueVoice parameters: ";
     QueryDeviceWithCommands(commands_truevoice_);
   }
@@ -201,14 +222,13 @@ void Diagnostics::Run() {
     LOG(INFO) << "Number of USB devices connected: "
               << number_of_connected_devices_;
   }
-  LOG(INFO) << "-- Report end --";
 }
 
-void Diagnostics::Poll() {
-  for (const DiagCommand& command : commands_poll_) {
-    device_.Query(command.id,
-                  base::Bind(&Diagnostics::HandlePollQueryResult,
-                             base::Unretained(this), command.description));
+void Diagnostics::QueryDeviceWithCommands(
+    const std::vector<DiagCommand>& commands) {
+  for (const DiagCommand& command : commands) {
+    device_.Query(command.id, base::Bind(&Diagnostics::HandleQueryResult,
+                                         base::Unretained(this), command));
     // Workaround for firmware < v0.7.0
     // TODO(karl@limesaudio.com): Remove this when fixed in firmware
     // TODO(karl@limesaudio.com) Update: Due to issues with USB performance
@@ -218,15 +238,10 @@ void Diagnostics::Poll() {
   }
 }
 
-void Diagnostics::QueryDeviceWithCommands(
-    const std::vector<DiagCommand>& commands) {
+void Diagnostics::Poll(const std::vector<DiagCommand>& commands) {
   for (const DiagCommand& command : commands) {
-    // This check is to see when the TV parameters are about to be read,
-    // (starting at 0x1804) and in that case prepend the below line for more
-    // readability in the log
-    device_.Query(command.id,
-                  base::Bind(&Diagnostics::HandleQueryResult,
-                             base::Unretained(this), command.description));
+    device_.Query(command.id, base::Bind(&Diagnostics::HandlePollQueryResult,
+                                         base::Unretained(this), command));
     // Workaround for firmware < v0.7.0
     // TODO(karl@limesaudio.com): Remove this when fixed in firmware
     // TODO(karl@limesaudio.com) Update: Due to issues with USB performance
@@ -255,6 +270,11 @@ void Diagnostics::LogQueryError(QueryResult code, const HIDMessage& request) {
       LOG(INFO) << base::StringPrintf("0x%04X: Error: report failed",
                                       request.command_id());
       break;
+    case QueryResult::kQueryNotValid:
+      LOG(INFO) << base::StringPrintf(
+          "0x%04X: Error: Command not supported by device.",
+          request.command_id());
+      break;
     case QueryResult::kQueryTimeout:
       LOG(INFO) << base::StringPrintf("0x%04X: Error: timeout",
                                       request.command_id());
@@ -267,7 +287,43 @@ void Diagnostics::LogQueryError(QueryResult code, const HIDMessage& request) {
   }
 }
 
-void Diagnostics::HandleQueryResult(const std::string& cmd_desc,
+bool Diagnostics::StoreDiagnosticResult(const DiagCommand& command,
+                                        const HIDMessage& response) {
+  bool value_changed = false;
+
+  uint16_t response_id = response.command_id();
+  if (diagnostic_values_.count(response_id) <= 0) {
+    LOG(INFO) << base::StringPrintf(
+        "0x%04X is not expected to have it's value cached (is it a non-poll "
+        "command?)",
+        response_id);
+    return false;
+  }
+
+  const std::string& response_body = response.body();
+  if (diagnostic_values_[response_id] != response_body) {
+    diagnostic_values_[response_id] = response_body;
+    value_changed = true;
+  }
+
+  int new_value;
+  switch (response_id) {
+    case kCommandStateUptime:
+      if (ParseIntFromResponseBody(response_body, &new_value)) {
+        UpdateUptime(new_value);
+      }
+      break;
+    case kCommandDaisySlaves:
+      if (ParseIntFromResponseBody(response_body, &new_value)) {
+        UpdateNumberOfConnectedSlaves(new_value);
+      }
+      break;
+  }
+
+  return value_changed;
+}
+
+void Diagnostics::HandleQueryResult(const DiagCommand& command,
                                     QueryResult code,
                                     const HIDMessage& request,
                                     const HIDMessage& response) {
@@ -275,69 +331,23 @@ void Diagnostics::HandleQueryResult(const std::string& cmd_desc,
     return LogQueryError(code, request);
   }
 
-  LogResponse(cmd_desc, response);
-
-  int new_value;
-  switch (response.command_id()) {
-    case kCommandStateUptime:
-      if (ParseIntFromResponseBody(response.body(), &new_value)) {
-        UpdateUptime(new_value);
-      }
-      break;
-    case kCommandDaisySlaves:
-      if (ParseIntFromResponseBody(response.body(), &new_value)) {
-        // Ignore return value here, since we aready logged the response above.
-        // This is just to make sure the value is updated.
-        UpdateNumberOfConnectedSlaves(new_value);
-      }
-      break;
+  if (command.type == kCommandTypePoll) {
+    StoreDiagnosticResult(command, response);
   }
+
+  LogResponse(command.description, response);
 }
 
-void Diagnostics::HandlePollQueryResult(const std::string& cmd_desc,
+void Diagnostics::HandlePollQueryResult(const DiagCommand& command,
                                         QueryResult code,
                                         const HIDMessage& request,
                                         const HIDMessage& response) {
   // Only log these if their values changed since the last poll.
-  switch (response.command_id()) {
-    case kCommandMicSelected:
-      if (mic_selected_ != response.body()) {
-        LogResponse(cmd_desc, response);
-      }
-      mic_selected_ = response.body();
-      break;
-    case kCommandSpkSelected:
-      if (spk_selected_ != response.body()) {
-        LogResponse(cmd_desc, response);
-      }
-      spk_selected_ = response.body();
-      break;
-    case kCommandSpkAudio:
-      if (spk_silence_ != response.body()) {
-        LogResponse(cmd_desc, response);
-      }
-      spk_silence_ = response.body();
-      break;
-    case kCommandHookStatus:
-      if (call_status_ != response.body()) {
-        LogResponse(cmd_desc, response);
-      }
-      call_status_ = response.body();
-      break;
-    case kCommandDfuStatus:
-      if (dfu_status_ != response.body()) {
-        LogResponse(cmd_desc, response);
-      }
-      dfu_status_ = response.body();
-      break;
-    case kCommandDaisySlaves:
-      int new_value;
-      if (ParseIntFromResponseBody(response.body(), &new_value)) {
-        if (UpdateNumberOfConnectedSlaves(new_value)) {
-          LogResponse(cmd_desc, response);
-        }
-      }
-      break;
+  if (code != QueryResult::kQuerySuccess) {
+    return;  // don't log errors when we poll, that would bloat the log
+  }
+  if (StoreDiagnosticResult(command, response)) {
+    LogResponse(command.description, response);
   }
 }
 
@@ -368,12 +378,10 @@ void Diagnostics::ResetSessionState() {
   uptime_ = 0;
   number_of_connected_slaves_ = 0;
   // don't reset |number_of_connected_devices_|, it's updated on udev events
-  mic_selected_.clear();
-  spk_selected_.clear();
-  spk_silence_.clear();
-  // Assume that were in a call when starting up/restarting, so we always
-  // log everything on the first diagnostic report
-  call_status_ = kCallOffHook;
+
+  for (const DiagCommand& cmd : commands_poll_) {
+    diagnostic_values_[cmd.id] = "";
+  }
 }
 
 }  // namespace atrusctl

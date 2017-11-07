@@ -49,8 +49,7 @@ bool HIDMessage::UnpackFromBuffer(const std::vector<uint8_t>& buffer) {
 }
 
 bool HIDMessage::Validate(const HIDMessage& other) {
-  return (command_id_ == other.command_id()) ||
-         (command_id_ == 0x7FF0);  // Unknown command
+  return (command_id_ == other.command_id());
 }
 
 std::string HIDMessage::ToString() const {
