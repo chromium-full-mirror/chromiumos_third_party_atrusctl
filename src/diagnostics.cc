@@ -42,9 +42,11 @@ const Diagnostics::DiagCommand kCommands[] = {
     {kCommandMicSelected, "Mic selected"},
     {kCommandSpkSelected, "Speaker selected"},
     {kCommandSpkAudio, "Speaker audio"},
-    {0x5000, "Touch register status"},  // TOUCH_REGISTER_STATUS
-    {0x5001, "SPI queue status"},       // SPI_QUEUE_STATUS
-    {0x5004, "Button presses"},         // NR_BUTTON_PRESSES
+    {0x1709, "Number of detected ASRC mem errors"},  // ASRC_FIFO_MEM_ERRORS
+    {0x170A, "Maximum ASRC mem error size"},         // ASRC_FIFO_ERROR_SIZE
+    {0x5000, "Touch register status"},               // TOUCH_REGISTER_STATUS
+    {0x5001, "SPI queue status"},                    // SPI_QUEUE_STATUS
+    {0x5004, "Button presses"},                      // NR_BUTTON_PRESSES
 };
 
 const Diagnostics::DiagCommand kCommandsTrueVoice[] = {
