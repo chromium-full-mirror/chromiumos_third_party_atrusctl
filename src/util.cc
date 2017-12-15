@@ -98,7 +98,7 @@ void TimeoutMs(int64_t ms) {
   struct timespec req = {.tv_sec = (ms / 1000),
                          .tv_nsec = ((ms % 1000) * 1000000)};
   struct timespec rem;
-  while ((nanosleep(&req, &rem) == 0) && (errno == EINTR)) {
+  while ((nanosleep(&req, &rem) != 0) && (errno == EINTR)) {
     req = rem;
   }
 }
