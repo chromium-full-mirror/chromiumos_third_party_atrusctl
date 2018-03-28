@@ -5,7 +5,7 @@
 #ifndef USB_DEVICE_H_
 #define USB_DEVICE_H_
 
-#include <libusb-1.0/libusb.h>
+#include <libusb.h>
 #include <cstdint>
 #include <ostream>
 #include <string>
@@ -17,7 +17,7 @@ namespace atrusctl {
 class UsbDevice {
  public:
   explicit UsbDevice(uint16_t id_vendor, uint16_t id_product);
-  ~UsbDevice();
+  virtual ~UsbDevice();
 
   virtual bool Open();
   virtual void Close();

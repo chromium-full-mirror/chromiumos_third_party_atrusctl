@@ -6,7 +6,6 @@
 #define ATRUS_CONTROLLER_H_
 
 #include <base/files/file_path.h>
-#include <brillo/errors/error.h>
 
 #include "diagnostics.h"
 #include "udev_subsystem_observer.h"
