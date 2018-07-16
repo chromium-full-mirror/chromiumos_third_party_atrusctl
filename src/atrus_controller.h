@@ -8,7 +8,10 @@
 #include <base/files/file_path.h>
 
 #include "diagnostics.h"
+#ifndef __ANDROID__
+// udev does not exist in Android
 #include "udev_subsystem_observer.h"
+#endif
 
 namespace atrusctl {
 
@@ -27,17 +30,27 @@ class AtrusControllerInterface {
 
 // Entry point for all actions available for a connected Atrus device;
 // enabling/disabling diagnostics and initiating firmware upgrades.
-class AtrusController : public UdevSubsystemObserver,
-                        public AtrusControllerInterface {
+class AtrusController :
+#ifndef __ANDROID__
+    public UdevSubsystemObserver,
+#endif
+    public AtrusControllerInterface {
  public:
   AtrusController(const base::FilePath& firmware_path);
 
+#ifdef __ANDROID__
+  // UdevSubsystemObserver
+  void OnDeviceAdded(const std::string& device_path);
+
+  // UdevSubsystemObserver
+  void OnDeviceRemoved(const std::string& device_path);
+#else
   // UdevSubsystemObserver
   void OnDeviceAdded(const std::string& device_path) override;
 
   // UdevSubsystemObserver
   void OnDeviceRemoved(const std::string& device_path) override;
-
+#endif
   // AtrusControllerInterface
   bool UpgradeDeviceFirmware(const base::FilePath& firmware_path,
                              bool force = false) override;

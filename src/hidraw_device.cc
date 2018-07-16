@@ -7,15 +7,18 @@
 #include <vector>
 
 #include <inttypes.h>
-#include <libudev.h>
 
 #include <base/bind.h>
 #include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 
 #include "atrus_device.h"
-#include "scoped_udev_handle.h"
 #include "util.h"
+
+#ifndef __ANDROID__
+#include <libudev.h>
+#include "scoped_udev_handle.h"
+#endif
 
 namespace atrusctl {
 
