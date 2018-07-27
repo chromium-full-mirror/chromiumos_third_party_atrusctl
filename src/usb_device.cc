@@ -17,8 +17,14 @@ const int kControlTransferTimeoutMs = 10000;
 
 }  // namespace
 
-UsbDevice::UsbDevice(uint16_t id_vendor, uint16_t id_product)
-    : id_vendor_(id_vendor), id_product_(id_product) {}
+UsbDevice::UsbDevice(uint16_t id_vendor,
+                     uint16_t id_product,
+                     std::string usb_path,
+                     std::string usb_serial)
+    : id_vendor_(id_vendor),
+      id_product_(id_product),
+      usb_path_(usb_path),
+      usb_serial_number_(usb_serial) {}
 
 UsbDevice::~UsbDevice() {
   Close();
@@ -34,6 +40,68 @@ bool UsbDevice::Initialize() {
   return (ret >= 0);
 }
 
+static bool is_usb_path_compatible(libusb_device* dev,
+                                   const std::string& usb_path) {
+  if (usb_path.empty()) {
+    // Do not match by given path
+    return true;
+  }
+
+  const int kBufferSize = 9;
+  char path_buffer[kBufferSize];
+
+  if (usb_path.length() < kBufferSize) {
+    return false;
+  }
+
+  uint8_t bus_number = libusb_get_bus_number(dev);
+  uint8_t device_address = libusb_get_device_address(dev);
+  snprintf(path_buffer, kBufferSize, "/%03d/%03d", bus_number, device_address);
+
+  return usb_path.compare(usb_path.length() - kBufferSize + 1,
+                          std::string::npos, path_buffer) == 0;
+}
+
+static bool check_usb_serial_number(libusb_device* usb_device,
+                                    uint8_t desc_serial_number,
+                                    std::string* serial_number) {
+  if (desc_serial_number == 0) {
+    // Cannot query serial number from device
+    // return true if not searching by serial number i.e is empty
+    return serial_number->empty();
+  }
+
+  struct libusb_device_handle* dev_handle = nullptr;
+
+  if (libusb_open(usb_device, &dev_handle) < 0) {
+    return serial_number->empty();
+  }
+
+  char device_serial_number[256];
+  memset(device_serial_number, 0, sizeof(device_serial_number));
+  int ret = libusb_get_string_descriptor_ascii(
+      dev_handle, desc_serial_number, (unsigned char*)device_serial_number,
+      sizeof(device_serial_number));
+
+  libusb_close(dev_handle);
+
+  if (serial_number->empty()) {
+    // Do not match by serial and update if not previously set
+    (*serial_number) += device_serial_number;
+    return true;
+  }
+
+  if (ret <= 0 || serial_number->compare(device_serial_number) != 0) {
+    return false;
+  }
+
+  return true;
+}
+
+std::string UsbDevice::GetSerialNumber() const {
+  return usb_serial_number_;
+}
+
 // Limited to one physical device
 bool UsbDevice::Find() {
   bool found = false;
@@ -43,16 +111,32 @@ bool UsbDevice::Find() {
     struct libusb_device_descriptor dev_desc;
     libusb_device* dev = devs[i];
 
+    if (!is_usb_path_compatible(dev, usb_path_)) {
+      // USB path mismatch
+      continue;
+    }
+
     if (libusb_get_device_descriptor(dev, &dev_desc) < 0) {
       continue;
     }
-    if ((dev_desc.idVendor == id_vendor_) &&
-        (dev_desc.idProduct == id_product_)) {
-      found = true;
-      dev_ = dev;
-      libusb_ref_device(dev_);
-      break;
+
+    if ((dev_desc.idVendor != id_vendor_) ||
+        (dev_desc.idProduct != id_product_)) {
+      // Usb VID PID mismatch
+      continue;
     }
+
+    // Extra check for multiple device upgrade issue
+    if (!check_usb_serial_number(dev, dev_desc.iSerialNumber,
+                                 &usb_serial_number_)) {
+      // Serial number check failed
+      continue;
+    }
+
+    found = true;
+    dev_ = dev;
+    libusb_ref_device(dev_);
+    break;
   }
   if (!found) {
     LOG(ERROR) << "Could not find device " << ToString();

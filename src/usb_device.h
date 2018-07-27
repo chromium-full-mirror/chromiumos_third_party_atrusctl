@@ -16,7 +16,10 @@ namespace atrusctl {
 
 class UsbDevice {
  public:
-  explicit UsbDevice(uint16_t id_vendor, uint16_t id_product);
+  explicit UsbDevice(uint16_t id_vendor,
+                     uint16_t id_product,
+                     std::string usb_path = "",
+                     std::string usb_serial = "");
   virtual ~UsbDevice();
 
   virtual bool Open();
@@ -54,6 +57,7 @@ class UsbDevice {
   bool GetStringDescriptor(uint8_t index, std::string* str) const;
 
   std::string ToString() const;
+  std::string GetSerialNumber() const;
 
  protected:
   virtual bool Find();
@@ -62,6 +66,8 @@ class UsbDevice {
 
   const uint16_t id_vendor_;
   const uint16_t id_product_;
+  const std::string usb_path_;
+  std::string usb_serial_number_;
   libusb_context* context_ = nullptr;
   libusb_device* dev_ = nullptr;
   libusb_device_handle* handle_ = nullptr;

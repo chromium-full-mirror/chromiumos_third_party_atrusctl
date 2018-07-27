@@ -6,12 +6,14 @@
 #define UPGRADE_H_
 
 #include <base/files/file_path.h>
+#include <string>
 
 namespace atrusctl {
 
 bool PerformUpgrade(const base::FilePath& upgrade_file,
                     bool* skipped,
-                    bool force_upgrade = false);
+                    bool force_upgrade = false,
+                    std::string usb_path = "");
 
 }  // namespace atrusctl
 

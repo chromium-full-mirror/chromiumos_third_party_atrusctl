@@ -99,7 +99,8 @@ bool ParseSuffixFromData(const std::vector<char>& data,
 
 bool PerformUpgrade(const base::FilePath& upgrade_file,
                     bool* skipped,
-                    bool force_upgrade) {
+                    bool force_upgrade,
+                    std::string usb_path) {
   *skipped = false;
   LOG(INFO) << "[Device is entering upgrade mode]";
   LOG(INFO) << "Upgrade file " << upgrade_file.value();
@@ -138,7 +139,7 @@ bool PerformUpgrade(const base::FilePath& upgrade_file,
   bool run_time_mode_failed = false;
 
   // Set the device in DFU mode
-  UsbDfuDevice dev_run_time(kAtrusUsbVid, kAtrusUsbPid);
+  UsbDfuDevice dev_run_time(kAtrusUsbVid, kAtrusUsbPid, usb_path);
   if (!dev_run_time.Open()) {
     LOG(INFO) << "Could not open device in run-time mode";
     run_time_mode_failed = true;
@@ -160,7 +161,8 @@ bool PerformUpgrade(const base::FilePath& upgrade_file,
   }
 
   // Device should be in DFU mode, start upgrade
-  UsbDfuDevice dev_dfu(kAtrusUsbDfuVid, kAtrusUsbDfuPid);
+  UsbDfuDevice dev_dfu(kAtrusUsbDfuVid, kAtrusUsbDfuPid, "",
+                       dev_run_time.GetSerialNumber());
   if (!dev_dfu.Open()) {
     LOG(ERROR) << "Could not open device in DFU mode";
     return false;
