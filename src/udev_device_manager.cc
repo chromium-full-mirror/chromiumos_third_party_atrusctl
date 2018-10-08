@@ -83,7 +83,8 @@ bool VerifyDeviceVidPid(udev_device* device) {
 
 UdevDeviceManager::UdevDeviceManager()
     : udev_(udev_new()),
-      monitor_(udev_monitor_new_from_netlink(udev_.get(), "udev")) {
+      monitor_(udev_monitor_new_from_netlink(udev_.get(), "udev")),
+      watcher_(FROM_HERE) {
   CHECK(udev_.get()) << "udev_new() returned nullptr";
   CHECK(monitor_.get()) << "udev_monitor_new_from_netlink() returned nullptr";
 }
@@ -187,12 +188,12 @@ void UdevDeviceManager::HandleEvent(const std::string& action_str,
   UdevAction action = StringToAction(action_str);
   switch (action) {
     case UdevAction::kAdd:
-      FOR_EACH_OBSERVER(UdevSubsystemObserver, observers_,
-                        OnDeviceAdded(device_path));
+      for (auto& observer : observers_)
+        observer.OnDeviceAdded(device_path);
       break;
     case UdevAction::kRemove:
-      FOR_EACH_OBSERVER(UdevSubsystemObserver, observers_,
-                        OnDeviceRemoved(device_path));
+      for (auto& observer : observers_)
+        observer.OnDeviceRemoved(device_path);
       break;
     default:
       VLOG(1) << "Unhandled udev event received for tag '" << kAtrusTag
