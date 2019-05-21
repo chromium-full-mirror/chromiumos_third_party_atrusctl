@@ -1,0 +1,51 @@
+# Copyright 2019 The Chromium OS Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//common-mk/generate-dbus-adaptors.gni")
+import("//common-mk/pkg_config.gni")
+
+group("all") {
+  deps = [
+    ":atrusd",
+  ]
+}
+
+generate_dbus_adaptors("atrusd-adaptors") {
+  dbus_adaptors_out_dir = "include/atrusctl/dbus_adaptors"
+  sources = [
+    "dbus_bindings/org.chromium.Atrusctl.xml",
+  ]
+}
+
+config("atrusd_config") {
+  cflags = [ "-Wno-c++11-narrowing" ]
+}
+
+executable("atrusd") {
+  sources = [
+    "src/atrus_controller.cc",
+    "src/atrusd.cc",
+    "src/dbus_adaptor.cc",
+    "src/diagnostics.cc",
+    "src/hid_connection.cc",
+    "src/hid_message.cc",
+    "src/hidraw_device.cc",
+    "src/udev_device_manager.cc",
+    "src/upgrade.cc",
+    "src/usb_device.cc",
+    "src/usb_dfu_device.cc",
+    "src/util.cc",
+  ]
+  # TODO(oka): This is necessary to suppress warning in util.cc
+  configs += [ ":atrusd_config" ]
+  pkg_deps = [
+    "libbrillo-${libbase_ver}",
+    "libchrome-${libbase_ver}",
+    "libudev",
+    "libusb-1.0",
+  ]
+  deps = [
+    ":atrusd-adaptors",
+  ]
+}
