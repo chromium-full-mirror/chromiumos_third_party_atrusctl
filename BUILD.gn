@@ -40,7 +40,7 @@ executable("atrusd") {
   # TODO(oka): This is necessary to suppress warning in util.cc
   configs += [ ":atrusd_config" ]
   pkg_deps = [
-    "libbrillo-${libbase_ver}",
+    "libbrillo",
     "libchrome-${libbase_ver}",
     "libudev",
     "libusb-1.0",
