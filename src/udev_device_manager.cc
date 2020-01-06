@@ -103,8 +103,9 @@ bool UdevDeviceManager::Initialize() {
   }
 
   int fd = udev_monitor_get_fd(monitor_.get());
+  // TODO(fqj,g/chromeos-libchrome): replace by base::FileDescriptorWatcher.
   if (!base::MessageLoopForIO::current()->WatchFileDescriptor(
-          fd, true, base::MessageLoopForIO::WATCH_READ, &watcher_, this)) {
+          fd, true, base::MessagePumpLibevent::WATCH_READ, &watcher_, this)) {
     LOG(ERROR) << "Unable to watch FD " << fd;
     return false;
   }

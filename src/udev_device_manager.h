@@ -16,7 +16,7 @@
 
 namespace atrusctl {
 
-class UdevDeviceManager : public base::MessageLoopForIO::Watcher {
+class UdevDeviceManager : public base::MessagePumpLibevent::FdWatcher {
  public:
   UdevDeviceManager();
 
@@ -45,7 +45,7 @@ class UdevDeviceManager : public base::MessageLoopForIO::Watcher {
 
   ScopedUdev udev_;
   ScopedUdevMonitor monitor_;
-  base::MessageLoopForIO::FileDescriptorWatcher watcher_;
+  base::MessagePumpLibevent::FdWatchController watcher_;
   base::ObserverList<UdevSubsystemObserver> observers_;
 
   DISALLOW_COPY_AND_ASSIGN(UdevDeviceManager);
