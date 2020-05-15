@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include <base/files/file_descriptor_watcher_posix.h>
 #include <base/macros.h>
 #include <base/message_loop/message_loop.h>
 #include <base/observer_list.h>
@@ -16,7 +17,7 @@
 
 namespace atrusctl {
 
-class UdevDeviceManager : public base::MessagePumpLibevent::FdWatcher {
+class UdevDeviceManager {
  public:
   UdevDeviceManager();
 
@@ -34,18 +35,14 @@ class UdevDeviceManager : public base::MessagePumpLibevent::FdWatcher {
   bool Enumerate();
 
  private:
-  // base::MessageLoopForIO::Watcher
-  void OnFileCanReadWithoutBlocking(int fd) override;
-
-  // base::MessageLoopForIO::Watcher
-  void OnFileCanWriteWithoutBlocking(int fd) override;
+  void OnFdReadable();
 
   void HandleEvent(const std::string& action_str,
                    const std::string& device_path);
 
   ScopedUdev udev_;
   ScopedUdevMonitor monitor_;
-  base::MessagePumpLibevent::FdWatchController watcher_;
+  std::unique_ptr<base::FileDescriptorWatcher::Controller> watcher_;
   base::ObserverList<UdevSubsystemObserver> observers_;
 
   DISALLOW_COPY_AND_ASSIGN(UdevDeviceManager);

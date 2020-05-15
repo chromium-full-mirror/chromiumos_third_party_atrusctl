@@ -6,10 +6,11 @@
 #define UDEV_SUBSYSTEM_OBSERVER_H_
 
 #include <string>
+#include <base/observer_list_types.h>
 
 namespace atrusctl {
 
-class UdevSubsystemObserver {
+class UdevSubsystemObserver : public base::CheckedObserver {
  public:
   virtual ~UdevSubsystemObserver() = default;
 

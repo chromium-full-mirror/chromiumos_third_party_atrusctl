@@ -7,6 +7,7 @@
 #include <inttypes.h>
 #include <libudev.h>
 
+#include <base/bind.h>
 #include <base/logging.h>
 #include <base/macros.h>
 #include <base/strings/string_number_conversions.h>
@@ -83,8 +84,7 @@ bool VerifyDeviceVidPid(udev_device* device) {
 
 UdevDeviceManager::UdevDeviceManager()
     : udev_(udev_new()),
-      monitor_(udev_monitor_new_from_netlink(udev_.get(), "udev")),
-      watcher_(FROM_HERE) {
+      monitor_(udev_monitor_new_from_netlink(udev_.get(), "udev")) {
   CHECK(udev_.get()) << "udev_new() returned nullptr";
   CHECK(monitor_.get()) << "udev_monitor_new_from_netlink() returned nullptr";
 }
@@ -103,9 +103,9 @@ bool UdevDeviceManager::Initialize() {
   }
 
   int fd = udev_monitor_get_fd(monitor_.get());
-  // TODO(fqj,g/chromeos-libchrome): replace by base::FileDescriptorWatcher.
-  if (!base::MessageLoopForIO::current()->WatchFileDescriptor(
-          fd, true, base::MessagePumpLibevent::WATCH_READ, &watcher_, this)) {
+  watcher_ = base::FileDescriptorWatcher::WatchReadable(
+      fd, base::Bind(&UdevDeviceManager::OnFdReadable, base::Unretained(this)));
+  if (!watcher_) {
     LOG(ERROR) << "Unable to watch FD " << fd;
     return false;
   }
@@ -163,7 +163,7 @@ bool UdevDeviceManager::Enumerate() {
   return true;
 }
 
-void UdevDeviceManager::OnFileCanReadWithoutBlocking(int fd) {
+void UdevDeviceManager::OnFdReadable() {
   ScopedUdevDevice device(udev_monitor_receive_device(monitor_.get()));
   if (!device) {
     LOG(WARNING) << "Ignore device event with no associated udev device.";
@@ -178,10 +178,6 @@ void UdevDeviceManager::OnFileCanReadWithoutBlocking(int fd) {
       action_str);
 
   HandleEvent(action_str, dev_node_path);
-}
-
-void UdevDeviceManager::OnFileCanWriteWithoutBlocking(int fd) {
-  LOG(ERROR) << "Unexpected non-blocking write notification for FD " << fd;
 }
 
 void UdevDeviceManager::HandleEvent(const std::string& action_str,

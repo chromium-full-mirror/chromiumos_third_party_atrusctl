@@ -4,6 +4,7 @@
 
 #include "hidraw_device.h"
 
+#include <functional>
 #include <vector>
 
 #include <inttypes.h>
@@ -48,9 +49,9 @@ void HIDRawDevice::Query(const uint16_t command,
   HIDRawDevice::QueryResult result;
   HIDMessage request(kHidReportId, command);
   HIDMessage response;
-  bool ret = OpenConnection(
-      base::Bind(&HIDRawDevice::ExecuteQueryWrapper, base::Unretained(this),
-                 base::ConstRef(request), &response, &result));
+  bool ret = OpenConnection(base::Bind(&HIDRawDevice::ExecuteQueryWrapper,
+                                       base::Unretained(this),
+                                       std::cref(request), &response, &result));
   if (!ret) {
     result = kQueryError;
   }
