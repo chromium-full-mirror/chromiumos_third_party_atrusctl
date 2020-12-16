@@ -9,7 +9,6 @@
 
 #include <base/files/file_descriptor_watcher_posix.h>
 #include <base/macros.h>
-#include <base/message_loop/message_loop.h>
 #include <base/observer_list.h>
 
 #include "scoped_udev_handle.h"
