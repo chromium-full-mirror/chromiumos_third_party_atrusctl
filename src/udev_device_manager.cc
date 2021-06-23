@@ -8,6 +8,7 @@
 #include <libudev.h>
 
 #include <base/bind.h>
+#include <base/check.h>
 #include <base/logging.h>
 #include <base/macros.h>
 #include <base/strings/string_number_conversions.h>

@@ -8,6 +8,7 @@
 #include <sys/select.h>
 #include <unistd.h>
 
+#include <base/check.h>
 #include <base/logging.h>
 #include <base/posix/eintr_wrapper.h>
 #include <base/posix/safe_strerror.h>
