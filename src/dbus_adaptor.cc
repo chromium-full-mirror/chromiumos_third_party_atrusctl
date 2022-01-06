@@ -68,9 +68,8 @@ bool DBusAdaptor::EnableDiagnostics(brillo::ErrorPtr* error,
     return false;
   }
 
-  controller_->EnableDiagnostics(
-      base::TimeDelta::FromSeconds(diag_interval),
-      base::TimeDelta::FromSeconds(ext_diag_interval));
+  controller_->EnableDiagnostics(base::Seconds(diag_interval),
+                                 base::Seconds(ext_diag_interval));
 
   return true;
 }

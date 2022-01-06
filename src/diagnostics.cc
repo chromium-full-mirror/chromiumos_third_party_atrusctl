@@ -178,7 +178,7 @@ void Diagnostics::Start(const base::TimeDelta& diag_interval,
   device_.set_path(device_path);
 
   poll_timer_.Start(
-      FROM_HERE, base::TimeDelta::FromSeconds(kPollIntervalSeconds),
+      FROM_HERE, base::Seconds(kPollIntervalSeconds),
       base::Bind(&Diagnostics::Poll, base::Unretained(this), commands_poll_));
 
   // Run a diagnostic immediately, then do it periodically

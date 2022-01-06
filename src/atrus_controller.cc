@@ -59,8 +59,8 @@ bool AtrusController::UpgradeDeviceFirmware(const base::FilePath& firmware_path,
             << (ret ? (skipped ? "skipped" : "succeeded") : "failed");
   LOG(INFO) << "[Device is entering usage mode]";
 
-  EnableDiagnostics(base::TimeDelta::FromSeconds(kDefaultDiagIntervalSec),
-                    base::TimeDelta::FromSeconds(kDefaultExtDiagIntervalSec));
+  EnableDiagnostics(base::Seconds(kDefaultDiagIntervalSec),
+                    base::Seconds(kDefaultExtDiagIntervalSec));
 
   return ret;
 }
