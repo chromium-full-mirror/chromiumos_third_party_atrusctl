@@ -9,7 +9,6 @@
 #include <map>
 #include <vector>
 
-#include <base/macros.h>
 #include <base/time/time.h>
 #include <base/timer/timer.h>
 
@@ -33,6 +32,9 @@ class Diagnostics {
   };
 
   Diagnostics();
+  Diagnostics(const Diagnostics&) = delete;
+  Diagnostics& operator=(const Diagnostics&) = delete;
+
   ~Diagnostics();
 
   void Start(const base::TimeDelta& diag_interval,
@@ -101,8 +103,6 @@ class Diagnostics {
   // Stores the latest values of some diagnostics. When a change in these
   // values is detected, the updated value is written to syslog.
   std::map<uint16_t, std::string> diagnostic_values_;
-
-  DISALLOW_COPY_AND_ASSIGN(Diagnostics);
 };
 
 }  // namespace atrusctl

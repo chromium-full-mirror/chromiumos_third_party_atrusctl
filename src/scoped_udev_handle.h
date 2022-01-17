@@ -5,7 +5,6 @@
 #ifndef SCOPED_UDEV_HANDLE_H_
 #define SCOPED_UDEV_HANDLE_H_
 
-#include <base/macros.h>
 #include <libudev.h>
 
 namespace atrusctl {
@@ -18,6 +17,9 @@ template <typename T, T* (*UnrefFunc)(T*)>
 class ScopedUdevHandle {
  public:
   explicit ScopedUdevHandle(T* obj) : obj_(obj) {}
+  ScopedUdevHandle(const ScopedUdevHandle&) = delete;
+  ScopedUdevHandle& operator=(const ScopedUdevHandle&) = delete;
+
   ~ScopedUdevHandle() {
     if (obj_)
       UnrefFunc(obj_);
@@ -28,8 +30,6 @@ class ScopedUdevHandle {
 
  private:
   T* obj_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedUdevHandle);
 };
 
 using ScopedUdev = ScopedUdevHandle<struct udev, udev_unref>;

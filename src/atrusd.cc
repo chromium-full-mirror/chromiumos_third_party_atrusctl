@@ -8,7 +8,6 @@
 #include <base/files/file_path.h>
 #include <base/format_macros.h>
 #include <base/logging.h>
-#include <base/macros.h>
 #include <base/run_loop.h>
 #include <brillo/daemons/daemon.h>
 #include <brillo/daemons/dbus_daemon.h>
@@ -33,6 +32,8 @@ class Atrusd : public brillo::DBusServiceDaemon {
   Atrusd(const base::FilePath& firmware_path)
       : DBusServiceDaemon(kAtrusctlName, dbus::ObjectPath(kAtrusctlObjectPath)),
         controller_(new AtrusController(firmware_path)) {}
+  Atrusd(const Atrusd&) = delete;
+  Atrusd& operator=(const Atrusd&) = delete;
 
  private:
   // brillo::Daemon
@@ -71,8 +72,6 @@ class Atrusd : public brillo::DBusServiceDaemon {
   UdevDeviceManager device_manager_;
   std::unique_ptr<DBusAdaptor> dbus_adaptor_;
   std::unique_ptr<AtrusController> controller_;
-
-  DISALLOW_COPY_AND_ASSIGN(Atrusd);
 };
 
 }  // namespace atrusctl

@@ -8,7 +8,6 @@
 #include <string>
 
 #include <base/files/file_descriptor_watcher_posix.h>
-#include <base/macros.h>
 #include <base/observer_list.h>
 
 #include "scoped_udev_handle.h"
@@ -19,6 +18,8 @@ namespace atrusctl {
 class UdevDeviceManager {
  public:
   UdevDeviceManager();
+  UdevDeviceManager(const UdevDeviceManager&) = delete;
+  UdevDeviceManager& operator=(const UdevDeviceManager&) = delete;
 
   // Initialize udev monitoring and start listening on udev socket
   bool Initialize();
@@ -43,8 +44,6 @@ class UdevDeviceManager {
   ScopedUdevMonitor monitor_;
   std::unique_ptr<base::FileDescriptorWatcher::Controller> watcher_;
   base::ObserverList<UdevSubsystemObserver> observers_;
-
-  DISALLOW_COPY_AND_ASSIGN(UdevDeviceManager);
 };
 
 }  // namespace atrusctl

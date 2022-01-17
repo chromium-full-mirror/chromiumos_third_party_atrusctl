@@ -27,6 +27,9 @@ class DBusAdaptor : public org::chromium::AtrusctlAdaptor,
  public:
   // DBusAdaptor does not own |controller| and will not delete it
   explicit DBusAdaptor(AtrusControllerInterface* controller);
+  DBusAdaptor(const DBusAdaptor&) = delete;
+  DBusAdaptor& operator=(const DBusAdaptor&) = delete;
+
   virtual ~DBusAdaptor();
 
   void RegisterAsync(brillo::dbus_utils::ExportedObjectManager* object_manager,
@@ -48,8 +51,6 @@ class DBusAdaptor : public org::chromium::AtrusctlAdaptor,
  private:
   std::unique_ptr<brillo::dbus_utils::DBusObject> dbus_object_;
   AtrusControllerInterface* controller_;  // Not owned
-
-  DISALLOW_COPY_AND_ASSIGN(DBusAdaptor);
 };
 
 }  // namespace atrusctl

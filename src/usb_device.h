@@ -10,8 +10,6 @@
 #include <ostream>
 #include <string>
 
-#include <base/macros.h>
-
 namespace atrusctl {
 
 class UsbDevice {
@@ -20,6 +18,9 @@ class UsbDevice {
                      uint16_t id_product,
                      std::string usb_path = "",
                      std::string usb_serial = "");
+  UsbDevice(const UsbDevice&) = delete;
+  UsbDevice& operator=(const UsbDevice&) = delete;
+
   virtual ~UsbDevice();
 
   virtual bool Open();
@@ -74,8 +75,6 @@ class UsbDevice {
 
  private:
   bool Initialize();
-
-  DISALLOW_COPY_AND_ASSIGN(UsbDevice);
 };
 
 }  // namespace atrusctl
