@@ -7,8 +7,8 @@
 
 #include <string>
 
-#include <base/callback.h>
 #include <base/files/file.h>
+#include <base/functional/callback.h>
 
 #include "hid_connection.h"
 #include "hid_message.h"
