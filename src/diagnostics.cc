@@ -179,12 +179,14 @@ void Diagnostics::Start(const base::TimeDelta& diag_interval,
 
   poll_timer_.Start(
       FROM_HERE, base::Seconds(kPollIntervalSeconds),
-      base::Bind(&Diagnostics::Poll, base::Unretained(this), commands_poll_));
+      base::BindRepeating(&Diagnostics::Poll, base::Unretained(this),
+                          commands_poll_));
 
   // Run a diagnostic immediately, then do it periodically
   Run();
-  diag_timer_.Start(FROM_HERE, diag_interval,
-                    base::Bind(&Diagnostics::Run, base::Unretained(this)));
+  diag_timer_.Start(
+      FROM_HERE, diag_interval,
+      base::BindRepeating(&Diagnostics::Run, base::Unretained(this)));
 
   // TODO(karlpeterson@google.com): fetch all truevoice parameters on start
   // to reset internal state
@@ -226,8 +228,8 @@ void Diagnostics::Run() {
 void Diagnostics::QueryDeviceWithCommands(
     const std::vector<DiagCommand>& commands) {
   for (const DiagCommand& command : commands) {
-    device_.Query(command.id, base::Bind(&Diagnostics::HandleQueryResult,
-                                         base::Unretained(this), command));
+    device_.Query(command.id, base::BindOnce(&Diagnostics::HandleQueryResult,
+                                             base::Unretained(this), command));
     // Workaround for firmware < v0.7.0
     // TODO(karl@limesaudio.com): Remove this when fixed in firmware
     // TODO(karl@limesaudio.com) Update: Due to issues with USB performance
@@ -239,8 +241,9 @@ void Diagnostics::QueryDeviceWithCommands(
 
 void Diagnostics::Poll(const std::vector<DiagCommand>& commands) {
   for (const DiagCommand& command : commands) {
-    device_.Query(command.id, base::Bind(&Diagnostics::HandlePollQueryResult,
-                                         base::Unretained(this), command));
+    device_.Query(command.id,
+                  base::BindOnce(&Diagnostics::HandlePollQueryResult,
+                                 base::Unretained(this), command));
     // Workaround for firmware < v0.7.0
     // TODO(karl@limesaudio.com): Remove this when fixed in firmware
     // TODO(karl@limesaudio.com) Update: Due to issues with USB performance

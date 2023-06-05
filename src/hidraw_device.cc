@@ -5,6 +5,7 @@
 #include "hidraw_device.h"
 
 #include <functional>
+#include <utility>
 #include <vector>
 
 #include <inttypes.h>
@@ -34,29 +35,29 @@ const uint8_t kHidReportId = 0x07;
 
 HIDRawDevice::HIDRawDevice() {}
 
-bool HIDRawDevice::OpenConnection(const ConnectCallback& callback) {
+bool HIDRawDevice::OpenConnection(ConnectCallback callback) {
   HIDConnection connection;
   if (!connection.Open(path_)) {
     return false;
   }
-  callback.Run(connection);
+  std::move(callback).Run(connection);
   connection.Close();
   return true;
 }
 
 void HIDRawDevice::Query(const uint16_t command,
-                         const QueryCompleteCallback& callback) {
+                         QueryCompleteCallback callback) {
   HIDRawDevice::QueryResult result;
   HIDMessage request(kHidReportId, command);
   HIDMessage response;
-  bool ret = OpenConnection(base::Bind(&HIDRawDevice::ExecuteQueryWrapper,
-                                       base::Unretained(this),
-                                       std::cref(request), &response, &result));
+  bool ret = OpenConnection(
+      base::BindOnce(&HIDRawDevice::ExecuteQueryWrapper, base::Unretained(this),
+                     std::cref(request), &response, &result));
   if (!ret) {
     result = kQueryError;
   }
 
-  callback.Run(result, request, response);
+  std::move(callback).Run(result, request, response);
 }
 
 void HIDRawDevice::ExecuteQueryWrapper(const HIDMessage& request,

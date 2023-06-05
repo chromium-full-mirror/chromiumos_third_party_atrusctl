@@ -30,13 +30,14 @@ class HIDRawDevice {
   HIDRawDevice& operator=(const HIDRawDevice&) = delete;
 
   using QueryCompleteCallback =
-      base::Callback<void(HIDRawDevice::QueryResult,
-                          const HIDMessage& request,
-                          const HIDMessage& response)>;
-  using ConnectCallback = base::Callback<void(const HIDConnection& connection)>;
+      base::OnceCallback<void(HIDRawDevice::QueryResult,
+                              const HIDMessage& request,
+                              const HIDMessage& response)>;
+  using ConnectCallback =
+      base::OnceCallback<void(const HIDConnection& connection)>;
 
-  bool OpenConnection(const ConnectCallback& callback);
-  void Query(const uint16_t command, const QueryCompleteCallback& callback);
+  bool OpenConnection(ConnectCallback callback);
+  void Query(const uint16_t command, QueryCompleteCallback callback);
 
   void set_path(const std::string& path) { path_ = path; }
 

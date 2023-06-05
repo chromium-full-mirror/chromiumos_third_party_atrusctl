@@ -104,7 +104,8 @@ bool UdevDeviceManager::Initialize() {
 
   int fd = udev_monitor_get_fd(monitor_.get());
   watcher_ = base::FileDescriptorWatcher::WatchReadable(
-      fd, base::Bind(&UdevDeviceManager::OnFdReadable, base::Unretained(this)));
+      fd, base::BindRepeating(&UdevDeviceManager::OnFdReadable,
+                              base::Unretained(this)));
   if (!watcher_) {
     LOG(ERROR) << "Unable to watch FD " << fd;
     return false;
