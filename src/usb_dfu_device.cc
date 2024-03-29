@@ -8,8 +8,8 @@
 #include <vector>
 
 #include <base/logging.h>
+#include <base/numerics/byte_conversions.h>
 #include <base/strings/stringprintf.h>
-#include <base/sys_byteorder.h>
 
 #include "util.h"
 
@@ -121,6 +121,11 @@ std::string StatusToString(Status status) {
   }
 }
 
+uint32_t ByteSwapToLE16(uint16_t n) {
+  return base::numerics::U16FromLittleEndian(
+      base::numerics::U16ToNativeEndian(n));
+}
+
 }  // namespace
 
 bool UsbDfuDevice::Find() {
@@ -159,11 +164,11 @@ bool UsbDfuDevice::Find() {
       func_desc_.type = extra_desc[1];
       func_desc_.attributes = extra_desc[2];
       func_desc_.detach_timeout =
-          base::ByteSwapToLE16((extra_desc[4] << 8) | extra_desc[3]);
+          ByteSwapToLE16((extra_desc[4] << 8) | extra_desc[3]);
       func_desc_.transfer_size =
-          base::ByteSwapToLE16((extra_desc[6] << 8) | extra_desc[5]);
+          ByteSwapToLE16((extra_desc[6] << 8) | extra_desc[5]);
       func_desc_.dfu_version =
-          base::ByteSwapToLE16((extra_desc[8] << 8) | extra_desc[7]);
+          ByteSwapToLE16((extra_desc[8] << 8) | extra_desc[7]);
 
       configuration_ = config_desc->bConfigurationValue;
       interface_ = iface_desc->bInterfaceNumber;
