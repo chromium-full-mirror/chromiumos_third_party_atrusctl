@@ -106,11 +106,12 @@ bool PerformUpgrade(const base::FilePath& upgrade_file,
   LOG(INFO) << "[Device is entering upgrade mode]";
   LOG(INFO) << "Upgrade file " << upgrade_file.value();
 
-  int64_t file_size;
-  if (!base::GetFileSize(upgrade_file, &file_size)) {
+  std::optional<int64_t> raw_file_size = base::GetFileSize(upgrade_file);
+  if (!raw_file_size.has_value()) {
     LOG(ERROR) << "Could not get file size";
     return false;
   }
+  int64_t file_size = raw_file_size.value();
   std::vector<char> file_contents(file_size);
   int read = base::ReadFile(upgrade_file, file_contents.data(), file_size);
   if (read < 0) {
