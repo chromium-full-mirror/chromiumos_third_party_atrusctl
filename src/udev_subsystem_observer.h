@@ -6,7 +6,10 @@
 #define UDEV_SUBSYSTEM_OBSERVER_H_
 
 #include <string>
+
 #include <base/observer_list_types.h>
+
+#include "atrus_device.h"
 
 namespace atrusctl {
 
@@ -14,7 +17,8 @@ class UdevSubsystemObserver : public base::CheckedObserver {
  public:
   virtual ~UdevSubsystemObserver() = default;
 
-  virtual void OnDeviceAdded(const std::string& device_path) = 0;
+  virtual void OnDeviceAdded(const std::string& device_path,
+                             DeviceVariant device_variant) = 0;
   virtual void OnDeviceRemoved(const std::string& device_path) = 0;
 };
 

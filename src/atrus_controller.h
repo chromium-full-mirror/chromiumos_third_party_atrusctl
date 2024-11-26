@@ -7,6 +7,7 @@
 
 #include <base/files/file_path.h>
 
+#include "atrus_device.h"
 #include "diagnostics.h"
 #ifndef __ANDROID__
 // udev does not exist in Android
@@ -25,6 +26,7 @@ class AtrusControllerInterface {
                                  base::TimeDelta ext_diag_interval) = 0;
   virtual void DisableDiagnostics() = 0;
   virtual bool UpgradeDeviceFirmware(const base::FilePath& firmware_path,
+                                     DeviceVariant device_variant,
                                      bool force = false) = 0;
 };
 
@@ -36,23 +38,27 @@ class AtrusController :
 #endif
     public AtrusControllerInterface {
  public:
-  AtrusController(const base::FilePath& firmware_path);
+  AtrusController(const base::FilePath& atrus_firmware_path,
+                  const base::FilePath& orion_firmware_path);
 
 #ifdef __ANDROID__
   // UdevSubsystemObserver
-  void OnDeviceAdded(const std::string& device_path);
+  void OnDeviceAdded(const std::string& device_path,
+                     DeviceVariant device_variant);
 
   // UdevSubsystemObserver
   void OnDeviceRemoved(const std::string& device_path);
 #else
   // UdevSubsystemObserver
-  void OnDeviceAdded(const std::string& device_path) override;
+  void OnDeviceAdded(const std::string& device_path,
+                     DeviceVariant device_variant) override;
 
   // UdevSubsystemObserver
   void OnDeviceRemoved(const std::string& device_path) override;
 #endif
   // AtrusControllerInterface
   bool UpgradeDeviceFirmware(const base::FilePath& firmware_path,
+                             DeviceVariant device_variant,
                              bool force = false) override;
 
   // AtrusControllerInterface
@@ -68,7 +74,8 @@ class AtrusController :
   std::string current_device_path_;
   int device_counter_ = 0;
 
-  base::FilePath firmware_path_;
+  base::FilePath atrus_firmware_path_;
+  base::FilePath orion_firmware_path_;
 };
 
 }  // namespace atrusctl
