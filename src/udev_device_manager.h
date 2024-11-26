@@ -10,6 +10,7 @@
 #include <base/files/file_descriptor_watcher_posix.h>
 #include <base/observer_list.h>
 
+#include "atrus_device.h"
 #include "scoped_udev_handle.h"
 #include "udev_subsystem_observer.h"
 
@@ -38,7 +39,8 @@ class UdevDeviceManager {
   void OnFdReadable();
 
   void HandleEvent(const std::string& action_str,
-                   const std::string& device_path);
+                   const std::string& device_path,
+                   DeviceVariant device_variant);
 
   ScopedUdev udev_;
   ScopedUdevMonitor monitor_;

@@ -67,17 +67,26 @@ bool ParseUintFromSysattr(const std::string& str, uint32_t* val) {
 }
 
 // Uses udev_device_get_sysattr_value() to check that |device| has vid/pid
-// that matches the expected vid/pid of Atrus, defined in atrus_device.h
-bool VerifyDeviceVidPid(udev_device* device) {
-  uint32_t id_vendor = 0, id_product = 0;
+// that matches the expected vid/pid of Atrus or Orion, defined in
+// atrus_device.h
+DeviceVariant VerifyDeviceVidPid(udev_device* device) {
+  uint32_t id_vendor, id_product;
   if (!ParseUintFromSysattr(udev_device_get_sysattr_value(device, "idVendor"),
-                            &id_vendor) ||
-      !ParseUintFromSysattr(udev_device_get_sysattr_value(device, "idProduct"),
-                            &id_product) ||
-      (id_vendor != kAtrusUsbVid) || (id_product != kAtrusUsbPid)) {
-    return false;
+                            &id_vendor)) {
+    return DeviceVariant::kUnknown;
   }
-  return true;
+  if (!ParseUintFromSysattr(udev_device_get_sysattr_value(device, "idProduct"),
+                            &id_product)) {
+    return DeviceVariant::kUnknown;
+  }
+  if ((id_vendor == kAtrusUsbVid) && (id_product == kAtrusUsbPid)) {
+    return DeviceVariant::kAtrus;
+  }
+
+  if ((id_vendor == kOrionUsbVid) && (id_product == kOrionUsbPid)) {
+    return DeviceVariant::kOrion;
+  }
+  return DeviceVariant::kUnknown;
 }
 
 }  // namespace
@@ -156,8 +165,11 @@ bool UdevDeviceManager::Enumerate() {
     // internally by |device|.
     udev_device* parent = udev_device_get_parent_with_subsystem_devtype(
         device.get(), "usb", "usb_device");
-    if (parent && VerifyDeviceVidPid(parent)) {
-      HandleEvent("add", dev_node_path);
+    if (parent) {
+      DeviceVariant device_variant = VerifyDeviceVidPid(parent);
+      if (device_variant != DeviceVariant::kUnknown) {
+        HandleEvent("add", dev_node_path, device_variant);
+      }
     }
   }
 
@@ -178,16 +190,21 @@ void UdevDeviceManager::OnFdReadable() {
       "Received event: dev_node_path=%s action_str=%s", dev_node_path,
       action_str);
 
-  HandleEvent(action_str, dev_node_path);
+  udev_device* parent = udev_device_get_parent_with_subsystem_devtype(
+      device.get(), "usb", "usb_device");
+  if (parent) {
+    HandleEvent(action_str, dev_node_path, VerifyDeviceVidPid(parent));
+  }
 }
 
 void UdevDeviceManager::HandleEvent(const std::string& action_str,
-                                    const std::string& device_path) {
+                                    const std::string& device_path,
+                                    DeviceVariant device_variant) {
   UdevAction action = StringToAction(action_str);
   switch (action) {
     case UdevAction::kAdd:
       for (auto& observer : observers_)
-        observer.OnDeviceAdded(device_path);
+        observer.OnDeviceAdded(device_path, device_variant);
       break;
     case UdevAction::kRemove:
       for (auto& observer : observers_)

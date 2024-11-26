@@ -5,13 +5,17 @@
 #ifndef UPGRADE_H_
 #define UPGRADE_H_
 
-#include <base/files/file_path.h>
 #include <string>
+
+#include <base/files/file_path.h>
+
+#include "atrus_device.h"
 
 namespace atrusctl {
 
 bool PerformUpgrade(const base::FilePath& upgrade_file,
                     bool* skipped,
+                    DeviceVariant device_variant,
                     bool force_upgrade = false,
                     std::string usb_path = "");
 

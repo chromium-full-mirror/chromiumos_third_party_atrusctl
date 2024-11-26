@@ -6,6 +6,7 @@
 
 #include <base/logging.h>
 
+#include "atrus_device.h"
 #include "upgrade.h"
 
 namespace atrusctl {
@@ -18,10 +19,13 @@ const int kDefaultExtDiagIntervalSec = 1800;
 
 }  // namespace
 
-AtrusController::AtrusController(const base::FilePath& firmware_path)
-    : firmware_path_(firmware_path) {}
+AtrusController::AtrusController(const base::FilePath& atrus_firmware_path,
+                                 const base::FilePath& orion_firmware_path)
+    : atrus_firmware_path_(atrus_firmware_path),
+      orion_firmware_path_(orion_firmware_path) {}
 
-void AtrusController::OnDeviceAdded(const std::string& device_path) {
+void AtrusController::OnDeviceAdded(const std::string& device_path,
+                                    DeviceVariant device_variant) {
   diagnostics_.UpdateNumberOfDevices(++device_counter_);
   if (!current_device_path_.empty()) {
     LOG(INFO) << "Device " << device_path
@@ -29,12 +33,20 @@ void AtrusController::OnDeviceAdded(const std::string& device_path) {
               << current_device_path_;
     return;
   } else {
-    LOG(INFO) << "Atrus device added";
+    LOG(INFO) << "Device " << device_path << " added";
   }
   current_device_path_ = device_path;
 
   // Upgrade firmware (if needed) and start diagnostics
-  UpgradeDeviceFirmware(firmware_path_);
+  if (device_variant == DeviceVariant::kAtrus) {
+    LOG(INFO) << "Device variant is Atrus";
+    UpgradeDeviceFirmware(atrus_firmware_path_, device_variant);
+  } else if (device_variant == DeviceVariant::kOrion) {
+    LOG(INFO) << "Device variant is Orion";
+    UpgradeDeviceFirmware(orion_firmware_path_, device_variant);
+  } else {
+    LOG(INFO) << "Device variant is Unknown";
+  }
 }
 
 void AtrusController::OnDeviceRemoved(const std::string& device_path) {
@@ -50,11 +62,12 @@ void AtrusController::OnDeviceRemoved(const std::string& device_path) {
 }
 
 bool AtrusController::UpgradeDeviceFirmware(const base::FilePath& firmware_path,
+                                            DeviceVariant device_variant,
                                             bool force) {
   DisableDiagnostics();
 
   bool skipped;
-  bool ret = PerformUpgrade(firmware_path, &skipped, force);
+  bool ret = PerformUpgrade(firmware_path, &skipped, device_variant, force);
   LOG(INFO) << "Upgrade "
             << (ret ? (skipped ? "skipped" : "succeeded") : "failed");
   LOG(INFO) << "[Device is entering usage mode]";
