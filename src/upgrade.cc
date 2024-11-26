@@ -100,6 +100,7 @@ bool ParseSuffixFromData(const std::vector<char>& data,
 
 bool PerformUpgrade(const base::FilePath& upgrade_file,
                     bool* skipped,
+                    DeviceVariant device_variant,
                     bool force_upgrade,
                     std::string usb_path) {
   *skipped = false;
@@ -127,9 +128,29 @@ bool PerformUpgrade(const base::FilePath& upgrade_file,
     LOG(ERROR) << "Could not parse USB DFU file suffix";
     return false;
   }
-  if ((suffix.id_vendor != kAtrusUsbVid) &&
-      (suffix.id_product != kAtrusUsbPid)) {
-    LOG(ERROR) << "The upgrade file is not intended for an Atrus device";
+
+  uint32_t id_vendor_dfu, id_product_dfu;
+  if ((suffix.id_vendor == kAtrusUsbVid) &&
+      (suffix.id_product == kAtrusUsbPid)) {
+    LOG(INFO) << "Atrus upgrade file detected";
+    if (device_variant != DeviceVariant::kAtrus) {
+      LOG(ERROR) << "Atrus upgrade file and device variant does not match";
+      return false;
+    }
+    id_vendor_dfu = kAtrusUsbDfuVid;
+    id_product_dfu = kAtrusUsbDfuPid;
+  } else if ((suffix.id_vendor == kOrionUsbVid) &&
+             (suffix.id_product == kOrionUsbPid)) {
+    LOG(INFO) << "Orion upgrade file detected";
+    if (device_variant != DeviceVariant::kOrion) {
+      LOG(ERROR) << "Orion upgrade file and device variant does not match";
+      return false;
+    }
+    id_vendor_dfu = kOrionUsbDfuVid;
+    id_product_dfu = kOrionUsbDfuPid;
+  } else {
+    LOG(ERROR) << "The upgrade file is neither intended for an Atrus nor an "
+                  "Orion device";
     return false;
   }
   std::string file_version = UsbBcd(suffix.bcd_device).ToString();
@@ -140,7 +161,7 @@ bool PerformUpgrade(const base::FilePath& upgrade_file,
   bool run_time_mode_failed = false;
 
   // Set the device in DFU mode
-  UsbDfuDevice dev_run_time(kAtrusUsbVid, kAtrusUsbPid, usb_path);
+  UsbDfuDevice dev_run_time(suffix.id_vendor, suffix.id_product, usb_path);
   if (!dev_run_time.Open()) {
     LOG(INFO) << "Could not open device in run-time mode";
     run_time_mode_failed = true;
@@ -162,7 +183,7 @@ bool PerformUpgrade(const base::FilePath& upgrade_file,
   }
 
   // Device should be in DFU mode, start upgrade
-  UsbDfuDevice dev_dfu(kAtrusUsbDfuVid, kAtrusUsbDfuPid, "",
+  UsbDfuDevice dev_dfu(id_vendor_dfu, id_product_dfu, "",
                        dev_run_time.GetSerialNumber());
   if (!dev_dfu.Open()) {
     LOG(ERROR) << "Could not open device in DFU mode";

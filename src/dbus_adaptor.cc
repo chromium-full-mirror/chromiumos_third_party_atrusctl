@@ -43,8 +43,8 @@ bool DBusAdaptor::ForceFirmwareUpgrade(brillo::ErrorPtr* error,
   }
 
   LOG(INFO) << "(DBus) Forcing upgrade with file: " << firmware_path;
-  *success =
-      controller_->UpgradeDeviceFirmware(base::FilePath(firmware_path), true);
+  *success = controller_->UpgradeDeviceFirmware(base::FilePath(firmware_path),
+                                                DeviceVariant::kUnknown, true);
   return true;
 }
 

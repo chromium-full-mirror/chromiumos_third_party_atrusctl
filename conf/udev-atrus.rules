@@ -1,1 +1,5 @@
-KERNEL=="hidraw*" SUBSYSTEM=="hidraw", ATTRS{idVendor}=="18d1", ATTRS{idProduct}=="8001", TAG+="atrus"
+KERNEL == "hidraw*" SUBSYSTEM == "hidraw", ATTRS{idVendor} == "18d1", \
+  ATTRS{idProduct} == "8001", TAG += "atrus"
+
+KERNEL == "hidraw*" SUBSYSTEM == "hidraw", ATTRS{idVendor} == "18d1", \
+  ATTRS{idProduct} == "8007", TAG += "atrus"

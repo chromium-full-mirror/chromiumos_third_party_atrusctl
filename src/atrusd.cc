@@ -29,9 +29,11 @@ namespace atrusctl {
 
 class Atrusd : public brillo::DBusServiceDaemon {
  public:
-  Atrusd(const base::FilePath& firmware_path)
+  Atrusd(const base::FilePath& atrus_firmware_path,
+         const base::FilePath& orion_firmware_path)
       : DBusServiceDaemon(kAtrusctlName, dbus::ObjectPath(kAtrusctlObjectPath)),
-        controller_(new AtrusController(firmware_path)) {}
+        controller_(
+            new AtrusController(atrus_firmware_path, orion_firmware_path)) {}
   Atrusd(const Atrusd&) = delete;
   Atrusd& operator=(const Atrusd&) = delete;
 
@@ -77,14 +79,19 @@ class Atrusd : public brillo::DBusServiceDaemon {
 }  // namespace atrusctl
 
 int main(int argc, char* argv[]) {
-  DEFINE_string(upgrade_file_path, "", "Path to firmware upgrade file");
-
+  DEFINE_string(atrus_upgrade_file_path, "",
+                "Path to Atrus firmware upgrade file");
+  DEFINE_string(orion_upgrade_file_path, "",
+                "Path to Orion firmware upgrade file");
   brillo::FlagHelper::Init(argc, argv, kDaemonName);
-  CHECK(!FLAGS_upgrade_file_path.empty()) << "--upgrade_file_path is required";
+  CHECK(!(FLAGS_atrus_upgrade_file_path.empty() &&
+          FLAGS_orion_upgrade_file_path.empty()))
+      << "at least one upgrade file is required";
 
   brillo::InitLog(brillo::InitFlags::kLogToSyslog);
 
-  atrusctl::Atrusd atrusd((base::FilePath(FLAGS_upgrade_file_path)));
+  atrusctl::Atrusd atrusd((base::FilePath(FLAGS_atrus_upgrade_file_path)),
+                          (base::FilePath(FLAGS_orion_upgrade_file_path)));
 
   return atrusd.Run();
 }
