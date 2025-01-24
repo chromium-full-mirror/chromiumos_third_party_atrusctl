@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium OS Authors. All rights reserved.
+// Copyright 2017 The ChromiumOS Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,9 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 
+#include <absl/strings/str_split.h>
 #include <base/functional/bind.h>
 #include <base/functional/callback.h>
 #include <base/logging.h>
@@ -25,6 +27,7 @@ using QueryResult = HIDRawDevice::QueryResult;
 const uint16_t kCommandDaisySlaves = 0x1351;
 const uint16_t kCommandHookStatus = 0x1601;
 const uint16_t kCommandStateUptime = 0x1604;
+const uint16_t kCommandFbEndpointStat = 0x170B;
 
 const Diagnostics::DiagCommand kCommands[] = {
     {0x1300, kCommandTypeExtended, "VERSION_MASTER"},     // VERSION_MASTER
@@ -60,13 +63,17 @@ const Diagnostics::DiagCommand kCommands[] = {
     {0x1707, kCommandTypePoll, "Speaker selected"},
     {0x1708, kCommandTypePoll, "Speaker audio"},
     {0x1709, kCommandTypePoll,
-     "Number of detected ASRC mem errors"},  // ASRC_FIFO_MEM_ERRORS
+     "Number of detected ASRC mem errors"},    // ASRC_FIFO_MEM_ERRORS
     {0x170A, kCommandTypePoll,
-     "Maximum ASRC mem error size"},                 // ASRC_FIFO_ERROR_SIZE
-    {0x5001, kCommandTypePoll, "SPI queue status"},  // SPI_QUEUE_STATUS
+     "Maximum ASRC mem error size"},           // ASRC_FIFO_ERROR_SIZE
+    {kCommandFbEndpointStat, kCommandTypePoll,
+     "Feedback endpoint stats"},    // FEEDBACK_ENDPOINT_STATISTICS
+    {0x5001, kCommandTypePoll,
+     "SPI queue status"},           // SPI_QUEUE_STATUS
     {0x5002, kCommandTypePoll,
-     "Touchpad status"},  // TOUCH_ANALOG_CALIBRATION_STATUS
-    {0x5004, kCommandTypePoll, "Button presses"},  // NR_BUTTON_PRESSES
+     "Touchpad status"},            // TOUCH_ANALOG_CALIBRATION_STATUS
+    {0x5004, kCommandTypePoll,
+     "Button presses"},             // NR_BUTTON_PRESSES
 
     // Truevoice commands
     {0x1800, kCommandTypeTruevoice, ""},  // TV_MIC_SELECTION
@@ -106,10 +113,15 @@ const Diagnostics::DiagCommand kCommands[] = {
 
 };
 
-// TODO(karl@limesaudio.com): Remove this when fixed in firmware
+// TODO(karl@limesaudio.com):
+// Remove this when fixed in firmware
 const int64_t kDiagDelay = 10;
 
 const int kPollIntervalSeconds = 5;
+
+// Feedback endpoint diagnostics log interval
+// (Default log interval @5s when overflow/underflow occurs)
+constexpr base::TimeDelta kFbEndpLogInterval = base::Minutes(10);
 
 // Expected response when querying an Atrus device with the command
 // |kCommandHookStatus| is either "Offhook" or "Onhook". We check for this
@@ -289,6 +301,98 @@ void Diagnostics::LogQueryError(QueryResult code, const HIDMessage& request) {
   }
 }
 
+bool Diagnostics::GetFeedbackEndpDiagnosticContents(
+    const std::string& response_body,
+    int *cb_overflow,
+    int *cb_underflow) {
+  int overflow;
+  int underflow;
+
+  if (response_body.empty()) {
+    return false;
+  }
+
+  std::vector<std::string> fb_stat = absl::StrSplit(response_body, ' ');
+  if (fb_stat.size() < 3) {
+    return false;
+  }
+
+  std::vector<std::string> overflow_stat = absl::StrSplit(fb_stat[1], '=');
+  std::vector<std::string> underflow_stat = absl::StrSplit(fb_stat[2], '=');
+  if (overflow_stat.size() < 2 || underflow_stat.size() < 2) {
+    return false;
+  }
+
+  base::StringToInt(overflow_stat[1], &overflow);
+  base::StringToInt(underflow_stat[1], &underflow);
+  if (overflow == -1 || underflow == -1) {
+    LOG(ERROR) << "Failed to parse int from feedback diags: "
+               << overflow_stat[1] << ", " << underflow_stat[1];
+    return false;
+  }
+
+  *cb_overflow = overflow;
+  *cb_underflow = underflow;
+  return true;
+}
+
+bool Diagnostics::HasFeedbackOverflowUnderflowValuesChanged(
+    const int& cb_overflow_curr,
+    const int& cb_underflow_curr) {
+  int cb_overflow_prev, cb_underflow_prev;
+
+  const std::string& cached_response_body =
+      diagnostic_values_[kCommandFbEndpointStat];
+  if (GetFeedbackEndpDiagnosticContents(cached_response_body,
+                                        &cb_overflow_prev,
+                                        &cb_underflow_prev)) {
+    if ((cb_overflow_prev != cb_overflow_curr) ||
+        (cb_underflow_prev != cb_underflow_curr)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool Diagnostics::StoreFeedbackEndpDiagnosticResult(
+    const std::string& response_body) {
+  int cb_overflow, cb_underflow;
+
+  if (GetFeedbackEndpDiagnosticContents(response_body,
+                                        &cb_overflow,
+                                        &cb_underflow)) {
+    // Check for any overflow/underflow so we could log it right away.
+    // If there were no changes in overflow/underflow values,
+    // wait for 10 minutes from last logged time if we need to cache
+    // and log again.
+    if (HasFeedbackOverflowUnderflowValuesChanged(cb_overflow,
+                                                  cb_underflow)) {
+      diagnostic_values_[kCommandFbEndpointStat] = response_body;
+      fb_endp_last_logged_time_ = base::TimeTicks::Now();
+      return true;
+    }
+  }
+
+  if (fb_endp_last_logged_time_.is_null()) {    // First poll
+    diagnostic_values_[kCommandFbEndpointStat] = response_body;
+    fb_endp_last_logged_time_ = base::TimeTicks::Now();
+    return true;
+  } else {
+    // Check if 10 minutes have passed from previous log and
+    // a change in values has been detected.
+    if (((base::TimeTicks::Now() - fb_endp_last_logged_time_) >=
+          kFbEndpLogInterval) &&
+         (diagnostic_values_[kCommandFbEndpointStat] !=
+          response_body)) {
+      diagnostic_values_[kCommandFbEndpointStat] = response_body;
+      fb_endp_last_logged_time_ = base::TimeTicks::Now();
+      return true;
+    }
+  }
+
+  return false;
+}
+
 bool Diagnostics::StoreDiagnosticResult(const DiagCommand& command,
                                         const HIDMessage& response) {
   bool value_changed = false;
@@ -303,7 +407,8 @@ bool Diagnostics::StoreDiagnosticResult(const DiagCommand& command,
   }
 
   const std::string& response_body = response.body();
-  if (diagnostic_values_[response_id] != response_body) {
+  if ((diagnostic_values_[response_id] != response_body) &&
+      (response_id != kCommandFbEndpointStat)) {
     diagnostic_values_[response_id] = response_body;
     value_changed = true;
   }
@@ -320,6 +425,8 @@ bool Diagnostics::StoreDiagnosticResult(const DiagCommand& command,
         UpdateNumberOfConnectedSlaves(new_value);
       }
       break;
+    case kCommandFbEndpointStat:
+      return StoreFeedbackEndpDiagnosticResult(response_body);
   }
 
   return value_changed;

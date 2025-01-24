@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium OS Authors. All rights reserved.
+// Copyright 2017 The ChromiumOS Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <map>
+#include <string>
 #include <vector>
 
 #include <base/time/time.h>
@@ -71,6 +72,13 @@ class Diagnostics {
   void ResetSessionState();
   bool SessionStateHasChanged() const;
 
+  bool GetFeedbackEndpDiagnosticContents(const std::string& response_body,
+                                         int *cb_overflow,
+                                         int *cb_underflow);
+  bool HasFeedbackOverflowUnderflowValuesChanged(const int& cb_overflow_curr,
+                                                 const int& cb_underflow_curr);
+  bool StoreFeedbackEndpDiagnosticResult(const std::string& response_body);
+
   const std::vector<DiagCommand> commands_poll_;
   const std::vector<DiagCommand> commands_extended_;
   const std::vector<DiagCommand> commands_truevoice_;
@@ -103,6 +111,14 @@ class Diagnostics {
   // Stores the latest values of some diagnostics. When a change in these
   // values is detected, the updated value is written to syslog.
   std::map<uint16_t, std::string> diagnostic_values_;
+
+  // How often feedback endpoint diagnostics should be logged.
+  // Polling/logging interval is 5s by default for all commands
+  // that are of poll type.
+  // For feedback endpoint diagnostics, only log results
+  // for every 10 minutes and when a change in values is detected,
+  // or when there's overflow/underflow to avoid bloating the log file.
+  base::TimeTicks fb_endp_last_logged_time_;
 };
 
 }  // namespace atrusctl
