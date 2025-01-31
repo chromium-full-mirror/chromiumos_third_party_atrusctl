@@ -305,21 +305,21 @@ bool Diagnostics::GetFeedbackEndpDiagnosticContents(
     const std::string& response_body,
     int *cb_overflow,
     int *cb_underflow) {
-  int overflow;
-  int underflow;
+  int overflow = -1;
+  int underflow = -1;
 
   if (response_body.empty()) {
     return false;
   }
 
-  std::vector<std::string> fb_stat = absl::StrSplit(response_body, ' ');
-  if (fb_stat.size() < 3) {
+  std::vector<std::string> fb_stats = absl::StrSplit(response_body, ' ');
+  if (fb_stats.size() < 3) {
     return false;
   }
 
-  std::vector<std::string> overflow_stat = absl::StrSplit(fb_stat[1], '=');
-  std::vector<std::string> underflow_stat = absl::StrSplit(fb_stat[2], '=');
-  if (overflow_stat.size() < 2 || underflow_stat.size() < 2) {
+  std::vector<std::string> overflow_stat = absl::StrSplit(fb_stats[1], '=');
+  std::vector<std::string> underflow_stat = absl::StrSplit(fb_stats[2], '=');
+  if ((overflow_stat.size() < 2) || (underflow_stat.size() < 2)) {
     return false;
   }
 
