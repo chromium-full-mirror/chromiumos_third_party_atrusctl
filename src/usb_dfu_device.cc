@@ -122,8 +122,7 @@ std::string StatusToString(Status status) {
 }
 
 uint32_t ByteSwapToLE16(uint16_t n) {
-  return base::numerics::U16FromLittleEndian(
-      base::numerics::U16ToNativeEndian(n));
+  return base::U16FromLittleEndian(base::U16ToNativeEndian(n));
 }
 
 }  // namespace
